@@ -1,4 +1,4 @@
-# FDE Portfolio
+# GenAI Portfolio
 
 AI projects and experiments built with the Claude API.
 
