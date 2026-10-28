@@ -1,0 +1,11 @@
+[
+  {
+    "task": "Write a Python function that takes a boto3 S3 client and a bucket name, and returns the total number of objects in the bucket, handling pagination with a paginator."
+  },
+  {
+    "task": "Write a JSON IAM policy document that allows read-only access (s3:GetObject and s3:ListBucket) to the bucket 'my-app-logs' and all objects within it, and nothing else."
+  },
+  {
+    "task": "Write a regex that matches valid AWS EC2 instance IDs (for example i-0abc123def4567890 or i-1234abcd), which start with 'i-' followed by 8 or 17 lowercase hexadecimal characters."
+  }
+]
