@@ -1,0 +1,467 @@
+[
+  {
+    "case": "demo_spec1",
+    "repeat": 1,
+    "passed": true,
+    "error": null,
+    "requirements": [
+      {
+        "expected": "5+ years of product management experience (required)",
+        "matched_to": "5+ years of product management experience (required)",
+        "expected_verdict": "met",
+        "actual_verdict": "met",
+        "expected_importance": "must_have",
+        "actual_importance": "must_have"
+      },
+      {
+        "expected": "Experience with B2B SaaS products (required)",
+        "matched_to": "Experience with B2B SaaS products (required)",
+        "expected_verdict": "met",
+        "actual_verdict": "met",
+        "expected_importance": "must_have",
+        "actual_importance": "must_have"
+      },
+      {
+        "expected": "Track record of shipping LLM or generative AI features to production (required)",
+        "matched_to": "Track record of shipping LLM or generative AI features to production (required)",
+        "expected_verdict": "partial",
+        "actual_verdict": "partial",
+        "expected_importance": "must_have",
+        "actual_importance": "must_have"
+      },
+      {
+        "expected": "Strong data skills, including writing your own SQL (required)",
+        "matched_to": "Strong data skills, including writing your own SQL (required)",
+        "expected_verdict": "met",
+        "actual_verdict": "met",
+        "expected_importance": "must_have",
+        "actual_importance": "must_have"
+      },
+      {
+        "expected": "Experience managing other product managers (required)",
+        "matched_to": "Experience managing other product managers (required)",
+        "expected_verdict": "missing",
+        "actual_verdict": "missing",
+        "expected_importance": "must_have",
+        "actual_importance": "must_have"
+      },
+      {
+        "expected": "Hands-on Python",
+        "matched_to": "Hands-on Python",
+        "expected_verdict": "partial",
+        "actual_verdict": "partial",
+        "expected_importance": "nice_to_have",
+        "actual_importance": "nice_to_have"
+      },
+      {
+        "expected": "Experience running A/B tests",
+        "matched_to": "Experience running A/B tests",
+        "expected_verdict": "met",
+        "actual_verdict": "met",
+        "expected_importance": "nice_to_have",
+        "actual_importance": "nice_to_have"
+      },
+      {
+        "expected": "Background in healthcare or another regulated industry",
+        "matched_to": "Background in healthcare or another regulated industry",
+        "expected_verdict": "missing",
+        "actual_verdict": "missing",
+        "expected_importance": "nice_to_have",
+        "actual_importance": "nice_to_have"
+      }
+    ],
+    "extra_requirements": [],
+    "recommendation": "skip",
+    "recommendation_ok": true,
+    "fit_score": 30,
+    "fit_score_ok": true,
+    "failed_checks": [],
+    "turns": 7,
+    "usage": {
+      "run_id": "eval-20261029-1547-demo_spec1-1",
+      "calls": 7,
+      "errors": 0,
+      "input_tokens": 16,
+      "output_tokens": 5570,
+      "cache_read_tokens": 32074,
+      "cache_write_tokens": 9545,
+      "cost_usd": 0.0043,
+      "cost_complete": true,
+      "latency_ms": 27193,
+      "tool_calls": 30
+    },
+    "verdicts_correct": 8
+  },
+  {
+    "case": "demo_spec1",
+    "repeat": 2,
+    "passed": true,
+    "error": null,
+    "requirements": [
+      {
+        "expected": "5+ years of product management experience (required)",
+        "matched_to": "5+ years of product management experience",
+        "expected_verdict": "met",
+        "actual_verdict": "met",
+        "expected_importance": "must_have",
+        "actual_importance": "must_have"
+      },
+      {
+        "expected": "Experience with B2B SaaS products (required)",
+        "matched_to": "Experience with B2B SaaS products",
+        "expected_verdict": "met",
+        "actual_verdict": "met",
+        "expected_importance": "must_have",
+        "actual_importance": "must_have"
+      },
+      {
+        "expected": "Track record of shipping LLM or generative AI features to production (required)",
+        "matched_to": "Track record of shipping LLM or generative AI features to production",
+        "expected_verdict": "partial",
+        "actual_verdict": "partial",
+        "expected_importance": "must_have",
+        "actual_importance": "must_have"
+      },
+      {
+        "expected": "Strong data skills, including writing your own SQL (required)",
+        "matched_to": "Strong data skills, including writing your own SQL",
+        "expected_verdict": "met",
+        "actual_verdict": "met",
+        "expected_importance": "must_have",
+        "actual_importance": "must_have"
+      },
+      {
+        "expected": "Experience managing other product managers (required)",
+        "matched_to": "Experience managing other product managers",
+        "expected_verdict": "missing",
+        "actual_verdict": "missing",
+        "expected_importance": "must_have",
+        "actual_importance": "must_have"
+      },
+      {
+        "expected": "Hands-on Python",
+        "matched_to": "Hands-on Python",
+        "expected_verdict": "partial",
+        "actual_verdict": "partial",
+        "expected_importance": "nice_to_have",
+        "actual_importance": "nice_to_have"
+      },
+      {
+        "expected": "Experience running A/B tests",
+        "matched_to": "Experience running A/B tests",
+        "expected_verdict": "met",
+        "actual_verdict": "met",
+        "expected_importance": "nice_to_have",
+        "actual_importance": "nice_to_have"
+      },
+      {
+        "expected": "Background in healthcare or another regulated industry",
+        "matched_to": "Background in healthcare or another regulated industry",
+        "expected_verdict": "missing",
+        "actual_verdict": "missing",
+        "expected_importance": "nice_to_have",
+        "actual_importance": "nice_to_have"
+      }
+    ],
+    "extra_requirements": [],
+    "recommendation": "skip",
+    "recommendation_ok": true,
+    "fit_score": 38,
+    "fit_score_ok": true,
+    "failed_checks": [],
+    "turns": 6,
+    "usage": {
+      "run_id": "eval-20261029-1547-demo_spec1-2",
+      "calls": 6,
+      "errors": 0,
+      "input_tokens": 14,
+      "output_tokens": 4748,
+      "cache_read_tokens": 31579,
+      "cache_write_tokens": 5749,
+      "cost_usd": 0.003411,
+      "cost_complete": true,
+      "latency_ms": 23278,
+      "tool_calls": 24
+    },
+    "verdicts_correct": 8
+  },
+  {
+    "case": "demo_spec1",
+    "repeat": 3,
+    "passed": true,
+    "error": null,
+    "requirements": [
+      {
+        "expected": "5+ years of product management experience (required)",
+        "matched_to": "5+ years of product management experience",
+        "expected_verdict": "met",
+        "actual_verdict": "met",
+        "expected_importance": "must_have",
+        "actual_importance": "must_have"
+      },
+      {
+        "expected": "Experience with B2B SaaS products (required)",
+        "matched_to": "Experience with B2B SaaS products",
+        "expected_verdict": "met",
+        "actual_verdict": "met",
+        "expected_importance": "must_have",
+        "actual_importance": "must_have"
+      },
+      {
+        "expected": "Track record of shipping LLM or generative AI features to production (required)",
+        "matched_to": "Track record of shipping LLM or generative AI features to production",
+        "expected_verdict": "partial",
+        "actual_verdict": "partial",
+        "expected_importance": "must_have",
+        "actual_importance": "must_have"
+      },
+      {
+        "expected": "Strong data skills, including writing your own SQL (required)",
+        "matched_to": "Strong data skills, including writing your own SQL",
+        "expected_verdict": "met",
+        "actual_verdict": "met",
+        "expected_importance": "must_have",
+        "actual_importance": "must_have"
+      },
+      {
+        "expected": "Experience managing other product managers (required)",
+        "matched_to": "Experience managing other product managers",
+        "expected_verdict": "missing",
+        "actual_verdict": "missing",
+        "expected_importance": "must_have",
+        "actual_importance": "must_have"
+      },
+      {
+        "expected": "Hands-on Python",
+        "matched_to": "Hands-on Python",
+        "expected_verdict": "partial",
+        "actual_verdict": "partial",
+        "expected_importance": "nice_to_have",
+        "actual_importance": "nice_to_have"
+      },
+      {
+        "expected": "Experience running A/B tests",
+        "matched_to": "Experience running A/B tests",
+        "expected_verdict": "met",
+        "actual_verdict": "met",
+        "expected_importance": "nice_to_have",
+        "actual_importance": "nice_to_have"
+      },
+      {
+        "expected": "Background in healthcare or another regulated industry",
+        "matched_to": "Background in healthcare or another regulated industry",
+        "expected_verdict": "missing",
+        "actual_verdict": "missing",
+        "expected_importance": "nice_to_have",
+        "actual_importance": "nice_to_have"
+      }
+    ],
+    "extra_requirements": [],
+    "recommendation": "skip",
+    "recommendation_ok": true,
+    "fit_score": 35,
+    "fit_score_ok": true,
+    "failed_checks": [],
+    "turns": 6,
+    "usage": {
+      "run_id": "eval-20261029-1547-demo_spec1-3",
+      "calls": 6,
+      "errors": 0,
+      "input_tokens": 14,
+      "output_tokens": 6022,
+      "cache_read_tokens": 32301,
+      "cache_write_tokens": 6088,
+      "cost_usd": 0.004097,
+      "cost_complete": true,
+      "latency_ms": 27153,
+      "tool_calls": 32
+    },
+    "verdicts_correct": 8
+  },
+  {
+    "case": "demo_spec1",
+    "repeat": 4,
+    "passed": true,
+    "error": null,
+    "requirements": [
+      {
+        "expected": "5+ years of product management experience (required)",
+        "matched_to": "5+ years of product management experience (required)",
+        "expected_verdict": "met",
+        "actual_verdict": "met",
+        "expected_importance": "must_have",
+        "actual_importance": "must_have"
+      },
+      {
+        "expected": "Experience with B2B SaaS products (required)",
+        "matched_to": "Experience with B2B SaaS products (required)",
+        "expected_verdict": "met",
+        "actual_verdict": "met",
+        "expected_importance": "must_have",
+        "actual_importance": "must_have"
+      },
+      {
+        "expected": "Track record of shipping LLM or generative AI features to production (required)",
+        "matched_to": "Track record of shipping LLM or generative AI features to production (required)",
+        "expected_verdict": "partial",
+        "actual_verdict": "partial",
+        "expected_importance": "must_have",
+        "actual_importance": "must_have"
+      },
+      {
+        "expected": "Strong data skills, including writing your own SQL (required)",
+        "matched_to": "Strong data skills, including writing your own SQL (required)",
+        "expected_verdict": "met",
+        "actual_verdict": "met",
+        "expected_importance": "must_have",
+        "actual_importance": "must_have"
+      },
+      {
+        "expected": "Experience managing other product managers (required)",
+        "matched_to": "Experience managing other product managers (required)",
+        "expected_verdict": "missing",
+        "actual_verdict": "missing",
+        "expected_importance": "must_have",
+        "actual_importance": "must_have"
+      },
+      {
+        "expected": "Hands-on Python",
+        "matched_to": "Hands-on Python",
+        "expected_verdict": "partial",
+        "actual_verdict": "partial",
+        "expected_importance": "nice_to_have",
+        "actual_importance": "nice_to_have"
+      },
+      {
+        "expected": "Experience running A/B tests",
+        "matched_to": "Experience running A/B tests",
+        "expected_verdict": "met",
+        "actual_verdict": "met",
+        "expected_importance": "nice_to_have",
+        "actual_importance": "nice_to_have"
+      },
+      {
+        "expected": "Background in healthcare or another regulated industry",
+        "matched_to": "Background in healthcare or another regulated industry",
+        "expected_verdict": "missing",
+        "actual_verdict": "missing",
+        "expected_importance": "nice_to_have",
+        "actual_importance": "nice_to_have"
+      }
+    ],
+    "extra_requirements": [],
+    "recommendation": "skip",
+    "recommendation_ok": true,
+    "fit_score": 30,
+    "fit_score_ok": true,
+    "failed_checks": [],
+    "turns": 8,
+    "usage": {
+      "run_id": "eval-20261029-1547-demo_spec1-4",
+      "calls": 8,
+      "errors": 0,
+      "input_tokens": 18,
+      "output_tokens": 5805,
+      "cache_read_tokens": 46365,
+      "cache_write_tokens": 6786,
+      "cost_usd": 0.004217,
+      "cost_complete": true,
+      "latency_ms": 28536,
+      "tool_calls": 33
+    },
+    "verdicts_correct": 8
+  },
+  {
+    "case": "demo_spec1",
+    "repeat": 5,
+    "passed": true,
+    "error": null,
+    "requirements": [
+      {
+        "expected": "5+ years of product management experience (required)",
+        "matched_to": "5+ years of product management experience (required)",
+        "expected_verdict": "met",
+        "actual_verdict": "met",
+        "expected_importance": "must_have",
+        "actual_importance": "must_have"
+      },
+      {
+        "expected": "Experience with B2B SaaS products (required)",
+        "matched_to": "Experience with B2B SaaS products (required)",
+        "expected_verdict": "met",
+        "actual_verdict": "met",
+        "expected_importance": "must_have",
+        "actual_importance": "must_have"
+      },
+      {
+        "expected": "Track record of shipping LLM or generative AI features to production (required)",
+        "matched_to": "Track record of shipping LLM or generative AI features to production (required)",
+        "expected_verdict": "partial",
+        "actual_verdict": "partial",
+        "expected_importance": "must_have",
+        "actual_importance": "must_have"
+      },
+      {
+        "expected": "Strong data skills, including writing your own SQL (required)",
+        "matched_to": "Strong data skills, including writing your own SQL (required)",
+        "expected_verdict": "met",
+        "actual_verdict": "met",
+        "expected_importance": "must_have",
+        "actual_importance": "must_have"
+      },
+      {
+        "expected": "Experience managing other product managers (required)",
+        "matched_to": "Experience managing other product managers (required)",
+        "expected_verdict": "missing",
+        "actual_verdict": "missing",
+        "expected_importance": "must_have",
+        "actual_importance": "must_have"
+      },
+      {
+        "expected": "Hands-on Python",
+        "matched_to": "Hands-on Python",
+        "expected_verdict": "partial",
+        "actual_verdict": "partial",
+        "expected_importance": "nice_to_have",
+        "actual_importance": "nice_to_have"
+      },
+      {
+        "expected": "Experience running A/B tests",
+        "matched_to": "Experience running A/B tests",
+        "expected_verdict": "met",
+        "actual_verdict": "met",
+        "expected_importance": "nice_to_have",
+        "actual_importance": "nice_to_have"
+      },
+      {
+        "expected": "Background in healthcare or another regulated industry",
+        "matched_to": "Background in healthcare or another regulated industry",
+        "expected_verdict": "missing",
+        "actual_verdict": "missing",
+        "expected_importance": "nice_to_have",
+        "actual_importance": "nice_to_have"
+      }
+    ],
+    "extra_requirements": [],
+    "recommendation": "skip",
+    "recommendation_ok": true,
+    "fit_score": 40,
+    "fit_score_ok": true,
+    "failed_checks": [],
+    "turns": 6,
+    "usage": {
+      "run_id": "eval-20261029-1547-demo_spec1-5",
+      "calls": 6,
+      "errors": 0,
+      "input_tokens": 14,
+      "output_tokens": 5300,
+      "cache_read_tokens": 29235,
+      "cache_write_tokens": 5421,
+      "cost_usd": 0.003621,
+      "cost_complete": true,
+      "latency_ms": 24194,
+      "tool_calls": 28
+    },
+    "verdicts_correct": 8
+  }
+]

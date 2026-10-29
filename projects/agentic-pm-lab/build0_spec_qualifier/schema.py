@@ -55,7 +55,8 @@ class FitAssessment(BaseModel):
         description="The hiring company, or null if the spec doesn't name it."
     )
     requirements: list[RequirementAssessment] = Field(
-        description="Every requirement in the spec, one entry each, in the order they appear."
+        description="Every requirement in the spec, one entry each, in the order they appear. "
+        "Include nice-to-have, bonus and preferred items as well as required ones."
     )
     strengths: list[str] = Field(
         description="The CV's strongest selling points for this role, most important first."
