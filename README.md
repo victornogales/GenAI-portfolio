@@ -5,7 +5,7 @@ AI projects and experiments built with the Claude API.
 ## Layout
 
 - `learning/`: short, single-file experiments, one folder per topic. They share the top-level `.venv` and `.env`.
-- `projects/`: standalone projects, each with its own dependencies, `.env` and README.
+- `projects/`: standalone projects, each with its own dependencies and README. They use the top-level `.env` unless they have their own.
 
 ## Learning
 
@@ -21,6 +21,7 @@ AI projects and experiments built with the Claude API.
 | Project | What it is |
 |---|---|
 | [mcp_cli_chat](projects/mcp_cli_chat) | Command-line chat app with an MCP client and server |
+| [agentic-pm-lab](projects/agentic-pm-lab) | A ladder of agentic builds, starting with a CV-to-spec qualifier |
 
 ## Setup
 

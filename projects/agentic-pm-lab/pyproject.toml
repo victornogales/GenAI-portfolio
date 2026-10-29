@@ -1,0 +1,11 @@
+[project]
+name = "agentic-pm-lab"
+version = "0.1.0"
+description = "A ladder of agentic builds, starting with a CV-to-spec qualifier"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "anthropic",
+    "pydantic>=2",
+    "python-dotenv",
+]
