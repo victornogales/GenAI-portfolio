@@ -1,0 +1,177 @@
+{
+  "description": "Synthetic demo case. Expected verdicts reviewed by hand; reference_output is a claude-haiku-5-5 run (2026-10-29) that matched them all.",
+  "cv": "data_public/demo_cv.md",
+  "spec": "data_public/demo_spec.md",
+  "expected": {
+    "requirements": [
+      {
+        "requirement": "5+ years of product management experience (required)",
+        "importance": "must_have",
+        "verdict": "met"
+      },
+      {
+        "requirement": "Experience with B2B SaaS products (required)",
+        "importance": "must_have",
+        "verdict": "met"
+      },
+      {
+        "requirement": "Track record of shipping LLM or generative AI features to production (required)",
+        "importance": "must_have",
+        "verdict": "partial"
+      },
+      {
+        "requirement": "Strong data skills, including writing your own SQL (required)",
+        "importance": "must_have",
+        "verdict": "met"
+      },
+      {
+        "requirement": "Experience managing other product managers (required)",
+        "importance": "must_have",
+        "verdict": "missing"
+      },
+      {
+        "requirement": "Hands-on Python",
+        "importance": "nice_to_have",
+        "verdict": "partial"
+      },
+      {
+        "requirement": "Experience running A/B tests",
+        "importance": "nice_to_have",
+        "verdict": "met"
+      },
+      {
+        "requirement": "Background in healthcare or another regulated industry",
+        "importance": "nice_to_have",
+        "verdict": "missing"
+      }
+    ],
+    "recommendation": [
+      "skip",
+      "apply_with_caveats"
+    ],
+    "fit_score_range": [
+      20,
+      55
+    ]
+  },
+  "reference_output": {
+    "role_title": "Senior Product Manager, AI Platform",
+    "company": "Lumen Data",
+    "requirements": [
+      {
+        "requirement": "5+ years of product management experience (required)",
+        "importance": "must_have",
+        "verdict": "met",
+        "evidence": [
+          {
+            "quote": "Own the roadmap for the self-serve analytics platform used by 1,200 business customers.",
+            "location": "Experience: Senior Product Manager, Brightline Analytics (2022-04 to present)"
+          },
+          {
+            "quote": "Launched scheduled report exports, adopted by 35% of accounts within six months.",
+            "location": "Experience: Product Manager, Fernwood Software (2018-09 to 2022-03)"
+          }
+        ],
+        "reasoning": "Calculated PM experience is 8.2 years overall (Fernwood Product Manager 3.6 years plus Brightline Senior PM 4.6 years, with no overlap), which clears the 5-year bar."
+      },
+      {
+        "requirement": "Experience with B2B SaaS products (required)",
+        "importance": "must_have",
+        "verdict": "met",
+        "evidence": [
+          {
+            "quote": "Product manager with eight years in B2B SaaS",
+            "location": "Summary"
+          },
+          {
+            "quote": "Own the roadmap for the self-serve analytics platform used by 1,200 business customers.",
+            "location": "Experience: Senior Product Manager, Brightline Analytics (2022-04 to present)"
+          }
+        ],
+        "reasoning": "The candidate has owned B2B analytics and HR platforms for business and mid-market customers, which matches the requirement."
+      },
+      {
+        "requirement": "Track record of shipping LLM or generative AI features to production (required)",
+        "importance": "must_have",
+        "verdict": "partial",
+        "evidence": [
+          {
+            "quote": "Ran a three-month pilot of an AI assistant that drafts SQL queries from plain-English questions; 140 customers took part.",
+            "location": "Experience: Senior Product Manager, Brightline Analytics (2022-04 to present)"
+          }
+        ],
+        "reasoning": "The CV shows an AI assistant that drafts SQL from plain-English questions, which is likely generative AI, but it was a three-month pilot and there is no evidence it was shipped to production. The CV never mentions LLMs."
+      },
+      {
+        "requirement": "Strong data skills, including writing your own SQL (required)",
+        "importance": "must_have",
+        "verdict": "met",
+        "evidence": [
+          {
+            "quote": "Wrote SQL against the product database to size opportunities and track feature adoption.",
+            "location": "Experience: Product Manager, Fernwood Software (2018-09 to 2022-03)"
+          }
+        ],
+        "reasoning": "The candidate writes their own SQL against the product database and lists SQL as a core skill, and has built dashboards and reporting."
+      },
+      {
+        "requirement": "Experience managing other product managers (required)",
+        "importance": "must_have",
+        "verdict": "missing",
+        "evidence": [],
+        "reasoning": "Nothing in the CV shows managing other PMs or direct reports. The only 'managed' line refers to owning a product module, and the team described is engineers and a designer."
+      },
+      {
+        "requirement": "Hands-on Python",
+        "importance": "nice_to_have",
+        "verdict": "partial",
+        "evidence": [
+          {
+            "quote": "Automated weekly reporting with small Python scripts, saving about a day a week.",
+            "location": "Experience: Business Analyst, Fernwood Software (2016-07 to 2018-08)"
+          },
+          {
+            "quote": "basic Python scripting",
+            "location": "Skills"
+          }
+        ],
+        "reasoning": "Python use is limited to small scripts and self-described basic scripting, which is weaker than hands-on Python work."
+      },
+      {
+        "requirement": "Experience running A/B tests",
+        "importance": "nice_to_have",
+        "verdict": "met",
+        "evidence": [
+          {
+            "quote": "Ran controlled experiments on pricing-page layouts, lifting trial-to-paid conversion by 9%.",
+            "location": "Experience: Senior Product Manager, Brightline Analytics (2022-04 to present)"
+          }
+        ],
+        "reasoning": "Controlled experiments on pricing-page layouts with a measured conversion lift are effectively A/B testing, though the CV does not use the term."
+      },
+      {
+        "requirement": "Background in healthcare or another regulated industry",
+        "importance": "nice_to_have",
+        "verdict": "missing",
+        "evidence": [],
+        "reasoning": "The CV has no healthcare or other regulated-industry experience; its sectors are analytics and HR software for mid-market companies."
+      }
+    ],
+    "strengths": [
+      "8.2 years of product management experience, which clears the 5+ year requirement",
+      "B2B SaaS product ownership for business and mid-market customers, including a self-serve analytics platform used by 1,200 business customers",
+      "Writes its own SQL and uses data to size opportunities and track adoption",
+      "Runs controlled experiments with measured results, such as a 9% lift in trial-to-paid conversion",
+      "Has piloted an AI assistant that drafts SQL from plain-English questions, which is directly relevant to LLM features"
+    ],
+    "gaps": [
+      "No evidence of managing other product managers, a required skill for leading the AI platform team",
+      "No evidence that an LLM or generative AI feature was shipped to production; the only AI work is a three-month pilot",
+      "No healthcare or regulated-industry background (nice to have)",
+      "Python experience is limited to small scripts and basic scripting (nice to have)"
+    ],
+    "fit_score": 35,
+    "recommendation": "skip",
+    "summary": "Alex Morgan has 8.2 years of product management in B2B SaaS, strong SQL skills, and a track record of running controlled experiments. However, the CV shows no experience managing other product managers, and the only AI work is a three-month pilot of an AI assistant with no evidence it reached production. Because one required skill is missing and another is only partly evidenced, the candidate should be skipped for this role."
+  }
+}

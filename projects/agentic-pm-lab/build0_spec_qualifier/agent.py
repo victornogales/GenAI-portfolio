@@ -1,8 +1,9 @@
 """The hand-written agent loop for the spec qualifier.
 
 Given a CV and a job spec, the agent reads the CV through the tools in
-tools.py and returns a FitAssessment (schema.py). Every model call goes
-through LLMLog, so tokens, cost and latency are recorded.
+tools.py and returns a FitAssessment (schema.py), plus the results of the
+hard checks in checks.py. Every model call goes through LLMLog, so tokens,
+cost and latency are recorded.
 
 Run from the agentic-pm-lab folder:
 
@@ -18,6 +19,7 @@ from anthropic import transform_schema
 
 from shared.llm_log import LLMLog
 
+from .checks import CheckResult, run_checks
 from .schema import FitAssessment
 from .tools import TOOLS, CVTools, ToolError
 
@@ -42,6 +44,7 @@ class AgentResult:
     assessment: FitAssessment
     turns: int
     usage: dict
+    checks: list[CheckResult]
 
 
 def run_agent(
@@ -100,7 +103,12 @@ def run_agent(
             assessment = FitAssessment.model_validate_json(text)
         except ValueError as exc:
             raise AgentError(f"Final answer didn't match the schema: {exc}") from exc
-        return AgentResult(assessment=assessment, turns=turn, usage=log.totals())
+        return AgentResult(
+            assessment=assessment,
+            turns=turn,
+            usage=log.totals(),
+            checks=run_checks(assessment, cv_text),
+        )
 
     raise AgentError(f"No final answer after {MAX_TURNS} turns.")
 
@@ -138,6 +146,9 @@ def main() -> None:
         effort=args.effort,
     )
     print(result.assessment.model_dump_json(indent=2))
+    print("\nChecks:")
+    for check in result.checks:
+        print(f"  {'PASS' if check.passed else 'FAIL'}  {check.name}  {check.detail}".rstrip())
     print(f"\n{result.turns} turns | {json.dumps(result.usage)}")
 
 
