@@ -9,3 +9,6 @@ build0_spec_qualifier/evals/golden/*
 
 # Call logs
 logs/
+
+# Eval reports that quote real job specs
+build0_spec_qualifier/evals/results/private_*
