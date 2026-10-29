@@ -27,11 +27,14 @@ DEFAULT_LOG_PATH = Path(__file__).resolve().parent.parent / "logs" / "llm_calls.
 
 # USD per million tokens: (input, output, cache read).
 # Anthropic list prices as of 2026-10. Cache writes are billed at 1.25x input.
-# Haiku 5.5: cache read assumed at 10% of input, and prompts over 100K tokens
-# cost more (0.50 / 2.50), which this table ignores.
+# Opus 5 / 4.8 are listed because refusal fallbacks can route to them.
+# Their cache reads, and Haiku 5.5's, are assumed at 10% of input. Haiku 5.5
+# prompts over 100K tokens cost more (0.50 / 2.50), which this table ignores.
 PRICES = {
     "claude-fable-5-1": (10.00, 50.00, 0.25),
     "claude-opus-5-5": (4.00, 20.00, 0.20),
+    "claude-opus-5": (5.00, 25.00, 0.50),
+    "claude-opus-4-8": (5.00, 25.00, 0.50),
     "claude-sonnet-5-5": (2.00, 10.00, 0.20),
     "claude-haiku-5-5": (0.10, 0.50, 0.01),
 }
@@ -77,12 +80,15 @@ class LLMLog:
         self.records: list[dict] = []
 
     def create(self, label: str = "", **kwargs) -> Any:
-        """client.messages.create(**kwargs), logged."""
-        return self._call(self.client.messages.create, label, kwargs)
+        """client.messages.create(**kwargs), logged. Uses client.beta if betas= is given."""
+        return self._call(self._messages(kwargs).create, label, kwargs)
 
     def parse(self, label: str = "", **kwargs) -> Any:
         """client.messages.parse(**kwargs), logged. Read .parsed_output on the result."""
-        return self._call(self.client.messages.parse, label, kwargs)
+        return self._call(self._messages(kwargs).parse, label, kwargs)
+
+    def _messages(self, kwargs: dict):
+        return self.client.beta.messages if kwargs.get("betas") else self.client.messages
 
     def totals(self) -> dict:
         """Sums across every call made through this LLMLog."""
