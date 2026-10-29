@@ -6,3 +6,6 @@ data_private/*
 build0_spec_qualifier/evals/golden/*
 !build0_spec_qualifier/evals/golden/.gitkeep
 !build0_spec_qualifier/evals/golden/demo_*.json
+
+# Call logs
+logs/
