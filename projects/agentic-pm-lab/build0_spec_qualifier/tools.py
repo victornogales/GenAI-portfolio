@@ -52,8 +52,8 @@ TOOLS = [
     },
     {
         "name": "search_cv",
-        "description": "Finds CV lines that contain every word in the query (ignoring case), with "
-        "their line numbers and sections. Use it to look for a skill, tool, domain or job title "
+        "description": "Finds CV lines that contain every word in the query (ignoring case; words "
+        "match from their start, so 'manag' finds 'managed'), with their line numbers and sections. Use it to look for a skill, tool, domain or job title "
         "anywhere in the CV, e.g. 'stakeholder management' or 'SQL'. No results means those exact "
         "words are absent, not that the experience is: try synonyms before marking a requirement missing.",
         "input_schema": {
@@ -174,10 +174,12 @@ class CVTools:
         words = query.lower().split()
         if not words:
             raise ToolError("Query is empty.")
+        # Match from the start of a word, so "AI" doesn't hit "trial" but "manag" hits "managed".
+        patterns = [re.compile(r"(?<!\w)" + re.escape(word), re.IGNORECASE) for word in words]
         hits = [
             f"{i + 1} [{self._section_of(i)}]: {line.strip()}"
             for i, line in enumerate(self.lines)
-            if all(word in line.lower() for word in words)
+            if all(p.search(line) for p in patterns)
         ]
         if not hits:
             return f"No lines contain all of: {', '.join(words)}"
