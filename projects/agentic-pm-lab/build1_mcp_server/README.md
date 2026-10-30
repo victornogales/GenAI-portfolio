@@ -11,7 +11,13 @@ An MCP server that exposes a job-search pipeline (roles, stages, notes) to Claud
 | `import_pipeline.py` | One-off import from a JSON export |
 | `tests/` | Tests |
 
-The demo database is `data_public/pipeline_demo.db` (synthetic roles).
+The demo database is `data_public/pipeline_demo.db` (synthetic roles). The real one is `data_private/pipeline.db`, built from a tracker export:
+
+```
+uv run python -m build1_mcp_server.import_pipeline data_private/pipeline_export.json
+```
+
+Add `--dry-run` to validate without writing. Re-running is safe: unchanged roles are skipped and stage changes are added to the history.
 
 ## Design
 
@@ -42,7 +48,7 @@ There is deliberately no hard-delete tool. `archive_role` hides a role instead, 
 | `archive_role` | Hide a role from the pipeline (can be restored) | `role_id`, `reason` | 2 |
 | `assess_fit` | Run the Build 0 agent on a role's spec against your CV | `role_id`, `model?` (default Haiku) | 2, costs money and sends the CV to the API |
 
-`stage` is one of `saved`, `applied`, `interviewing`, `offer`, `rejected`, `withdrawn`. `?` marks an optional input.
+`stage` is one of `saved`, `applied`, `talking`, `interviewing`, `offer`, `closed`, the stages the existing job tracker uses. `?` marks an optional input.
 
 ### Resources
 
@@ -62,7 +68,6 @@ There is deliberately no hard-delete tool. `archive_role` hides a role instead, 
 
 - **`list_roles` vs `search_roles`.** Keep both only if they stay clearly different (filtering vs free-text search). Otherwise merge them into `list_roles` with an optional `query`.
 - **`assess_fit`.** It links Build 1 to Build 0 but costs money and sends the CV to Anthropic's API. Leaving it out keeps the server fully local.
-- **Stages.** Check the list against the stages the existing job tracker uses, since `import_pipeline.py` reads from it.
 
 ## Install in Claude Desktop
 
