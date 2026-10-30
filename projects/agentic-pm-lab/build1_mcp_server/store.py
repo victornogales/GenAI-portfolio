@@ -115,11 +115,17 @@ def connect(db_path: Path | str = DEFAULT_DB) -> Iterator[sqlite3.Connection]:
         conn.close()
 
 
-def upsert_role(conn: sqlite3.Connection, role_id: str, fields: dict, updated_at: str | None = None) -> str:
+def upsert_role(
+    conn: sqlite3.Connection,
+    role_id: str,
+    fields: dict,
+    updated_at: str | None = None,
+    note: str = "Imported",
+) -> str:
     """Insert or update a role. Returns "added", "updated" or "unchanged".
 
-    A stage change is recorded in stage_history; a new role gets a first
-    history row with no from_stage.
+    A stage change is recorded in stage_history, with `note`; a new role gets
+    a first history row with no from_stage.
     """
     values = {k: fields.get(k) for k in ROLE_FIELDS}
     values["flagged"] = int(bool(values["flagged"]))
@@ -133,7 +139,7 @@ def upsert_role(conn: sqlite3.Connection, role_id: str, fields: dict, updated_at
             f"INSERT INTO roles ({columns}) VALUES ({placeholders})",
             (role_id, *values.values(), stamp, stamp),
         )
-        _record_stage(conn, role_id, None, values["stage"], stamp, "Imported")
+        _record_stage(conn, role_id, None, values["stage"], stamp, note)
         return "added"
 
     if all(existing[k] == v for k, v in values.items()):
@@ -144,7 +150,7 @@ def upsert_role(conn: sqlite3.Connection, role_id: str, fields: dict, updated_at
         (*values.values(), stamp, role_id),
     )
     if existing["stage"] != values["stage"]:
-        _record_stage(conn, role_id, existing["stage"], values["stage"], stamp, "Imported")
+        _record_stage(conn, role_id, existing["stage"], values["stage"], stamp, note)
     return "updated"
 
 
@@ -231,13 +237,13 @@ def update_stage(conn: sqlite3.Connection, role_id: str, stage: str, note: str |
     return get_role(conn, role_id)
 
 
-def add_note(conn: sqlite3.Connection, role_id: str, text: str) -> dict:
-    """Add a dated note to a role."""
+def add_note(conn: sqlite3.Connection, role_id: str, text: str, created_at: str | None = None) -> dict:
+    """Add a dated note to a role, dated now unless created_at is given (used for imports and demo data)."""
     _active_role(conn, role_id)
     text = _required(text, "text")
     if len(text) > MAX_NOTE_LENGTH:
         raise ValueError(f"Note is {len(text)} characters; the limit is {MAX_NOTE_LENGTH}.")
-    conn.execute("INSERT INTO notes (role_id, text, created_at) VALUES (?, ?, ?)", (role_id, text, now()))
+    conn.execute("INSERT INTO notes (role_id, text, created_at) VALUES (?, ?, ?)", (role_id, text, created_at or now()))
     return get_role(conn, role_id)
 
 

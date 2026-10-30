@@ -9,9 +9,10 @@ An MCP server that exposes a job-search pipeline (roles, stages, notes) to Claud
 | `server.py` | FastMCP app: tools, resources, prompts |
 | `store.py` | SQLite access, the only code that writes |
 | `import_pipeline.py` | One-off import from a JSON export |
+| `make_demo_db.py` | Builds the synthetic demo database |
 | `tests/` | Tests |
 
-The demo database is `data_public/pipeline_demo.db` (synthetic roles). The real one is `data_private/pipeline.db`, built from a tracker export:
+The demo database is `data_public/pipeline_demo.db`: 12 fictional roles covering every stage, flagged and stale roles, due and overdue next actions, notes, fit assessments and an archived role. Rebuild it (dates move to today) with `uv run python -m build1_mcp_server.make_demo_db`. The real one is `data_private/pipeline.db`, built from a tracker export:
 
 ```
 uv run python -m build1_mcp_server.import_pipeline data_private/pipeline_export.json
