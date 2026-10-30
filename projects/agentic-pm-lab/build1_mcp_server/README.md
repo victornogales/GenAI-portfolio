@@ -37,7 +37,7 @@ There is deliberately no hard-delete tool. `archive_role` hides a role instead, 
 
 | Tool | One-liner | Inputs | Tier |
 |---|---|---|---|
-| `list_roles` | List roles, optionally filtered by stage | `stage?` (enum), `limit?` (default 20) | 0 |
+| `list_roles` | List roles, optionally filtered by stage | `stage?` (enum), `limit?` (default 20), `include_archived?` (default false) | 0 |
 | `get_role` | Full record for one role: details, stage history, notes | `role_id` | 0 |
 | `search_roles` | Find roles by company, title or keyword | `query` | 0 |
 | `pipeline_summary` | Counts by stage, plus roles with no activity for N days | `stale_days?` (default 14) | 0 |
@@ -80,7 +80,7 @@ uv run mcp dev build1_mcp_server/server.py
 
 Open the URL it prints, click **Connect**, then **Tools → List Tools**. The server reads `data_private/pipeline.db`; to use another database, set `PIPELINE_DB` first (in PowerShell, `$env:PIPELINE_DB = "data_public/pipeline_demo.db"`).
 
-So far the server has the four read-only tools: `pipeline_summary`, `list_roles`, `search_roles` and `get_role`.
+The server has every tool in the table below except `assess_fit`. The write tools change whichever database the server is using, so try them on the demo database or a copy before using your real one.
 
 ## Install in Claude Desktop
 

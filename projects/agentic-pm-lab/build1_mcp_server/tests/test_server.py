@@ -43,10 +43,16 @@ def call(db_path, *calls):
     return asyncio.run(run())
 
 
-def test_lists_the_four_read_only_tools(db):
+def test_tools_carry_their_risk_tier(db):
     tools, _ = call(db)
-    assert sorted(t.name for t in tools) == ["get_role", "list_roles", "pipeline_summary", "search_roles"]
-    assert all(t.annotations.read_only_hint for t in tools)
+    by_name = {t.name: t.annotations for t in tools}
+    reads = {"get_role", "list_roles", "pipeline_summary", "search_roles"}
+    writes = {"add_role", "update_stage", "add_note", "set_next_action", "restore_role"}
+    assert set(by_name) == reads | writes | {"archive_role"}
+    assert all(by_name[n].read_only_hint for n in reads)
+    assert all(not by_name[n].read_only_hint and not by_name[n].destructive_hint for n in writes)
+    assert by_name["archive_role"].destructive_hint
+    assert by_name["update_stage"].idempotent_hint and not by_name["add_note"].idempotent_hint
 
 
 def test_read_tools_return_pipeline_data(db):
@@ -61,6 +67,42 @@ def test_read_tools_return_pipeline_data(db):
     assert [r["id"] for r in listed.structured_content["result"]] == ["acme-pm"]
     assert [r["id"] for r in found.structured_content["result"]] == ["acme-pm"]
     assert json.loads(role.content[0].text)["next_action"] == "Prep for call."
+
+
+def test_write_tools_change_the_pipeline(db):
+    _, results = call(
+        db,
+        ("add_role", {"company": "Beta", "title": "AI PM", "track": "ai", "job_url": "https://beta.example/1"}),
+        ("update_stage", {"role_id": "beta-ai-pm", "stage": "applied", "note": "Applied online"}),
+        ("add_note", {"role_id": "beta-ai-pm", "text": "Hiring manager is Sam."}),
+        ("set_next_action", {"role_id": "beta-ai-pm", "action": "Chase recruiter", "due_date": "2026-11-04"}),
+        ("archive_role", {"role_id": "beta-ai-pm", "reason": "Duplicate"}),
+        ("list_roles", {}),
+        ("list_roles", {"include_archived": True}),
+        ("restore_role", {"role_id": "beta-ai-pm"}),
+    )
+    assert not any(r.is_error for r in results), [r.content[0].text for r in results if r.is_error]
+    added, staged, noted, actioned, archived, visible, everything, restored = results
+    assert json.loads(added.content[0].text)["id"] == "beta-ai-pm"
+    assert [h["to_stage"] for h in json.loads(staged.content[0].text)["history"]] == ["saved", "applied"]
+    assert json.loads(noted.content[0].text)["notes"][0]["text"] == "Hiring manager is Sam."
+    assert json.loads(actioned.content[0].text)["next_due"] == "2026-11-04"
+    assert json.loads(archived.content[0].text)["archive_reason"] == "Duplicate"
+    assert [r["id"] for r in visible.structured_content["result"]] == ["acme-pm"]
+    assert "beta-ai-pm" in [r["id"] for r in everything.structured_content["result"]]
+    assert json.loads(restored.content[0].text)["archived_at"] is None
+
+
+def test_write_errors_reach_the_client(db):
+    _, (duplicate, bad_date, archived_change) = call(
+        db,
+        ("add_role", {"company": "acme", "title": "platform pm"}),
+        ("set_next_action", {"role_id": "acme-pm", "action": "Call", "due_date": "soon"}),
+        ("archive_role", {"role_id": "nope", "reason": "x"}),
+    )
+    assert duplicate.is_error and "already in the pipeline as 'acme-pm'" in duplicate.content[0].text
+    assert bad_date.is_error and "YYYY-MM-DD" in bad_date.content[0].text
+    assert archived_change.is_error and "No role with id 'nope'" in archived_change.content[0].text
 
 
 def test_expected_errors_reach_the_client(db):
