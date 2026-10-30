@@ -13,6 +13,7 @@ Archived roles are left out of reads unless include_archived=True.
 """
 
 import json
+import re
 import sqlite3
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
@@ -166,6 +167,158 @@ def add_fit_assessment(conn: sqlite3.Connection, role_id: str, fit: dict) -> boo
         ),
     )
     return cursor.rowcount == 1
+
+
+# Writes used by the server's tools. Each validates its input, raises
+# ValueError with a message the model can act on, and returns the role's full
+# record (as get_role) so the caller sees the result. Archived roles can only
+# be read or restored.
+
+MAX_NOTE_LENGTH = 5000
+
+
+def add_role(
+    conn: sqlite3.Connection,
+    company: str,
+    title: str,
+    stage: str = "saved",
+    track: str | None = None,
+    channel: str | None = None,
+    job_url: str | None = None,
+    spec_url: str | None = None,
+    next_action: str | None = None,
+    today: date | None = None,
+) -> dict:
+    """Add a new role. Its id is made from the company and title, e.g. "acme-platform-pm"."""
+    company, title = _required(company, "company"), _required(title, "title")
+    _check_choice(stage, STAGES, "stage")
+    _check_choice(track, TRACKS, "track")
+    _check_choice(channel, CHANNELS, "channel")
+    for name, url in (("job_url", job_url), ("spec_url", spec_url)):
+        if url and not url.startswith(("https://", "http://")):
+            raise ValueError(f"{name} must be a web link starting with https://")
+    duplicate = conn.execute(
+        "SELECT id FROM roles WHERE lower(company) = lower(?) AND lower(title) = lower(?) AND archived_at IS NULL",
+        (company, title),
+    ).fetchone()
+    if duplicate:
+        raise ValueError(f"{company} / {title} is already in the pipeline as {duplicate['id']!r}.")
+
+    role_id = _unique_id(conn, f"{company} {title}")
+    stamp = now()
+    fields = {
+        "company": company, "title": title, "stage": stage, "track": track, "channel": channel,
+        "date_added": (today or date.today()).isoformat(), "next_action": _optional(next_action),
+        "flagged": False, "job_url": job_url or None, "spec_url": spec_url or None, "cv_url": None,
+    }
+    columns = ", ".join(("id", *ROLE_FIELDS, "created_at", "updated_at"))
+    conn.execute(
+        f"INSERT INTO roles ({columns}) VALUES ({', '.join('?' * (len(ROLE_FIELDS) + 3))})",
+        (role_id, *(int(fields[k]) if k == "flagged" else fields[k] for k in ROLE_FIELDS), stamp, stamp),
+    )
+    _record_stage(conn, role_id, None, stage, stamp, "Added")
+    return get_role(conn, role_id)
+
+
+def update_stage(conn: sqlite3.Connection, role_id: str, stage: str, note: str | None = None) -> dict:
+    """Move a role to a new stage and record it in the history. Moving to the current stage changes nothing."""
+    _check_choice(stage, STAGES, "stage")
+    role = _active_role(conn, role_id)
+    if role["stage"] != stage:
+        stamp = now()
+        conn.execute("UPDATE roles SET stage = ?, updated_at = ? WHERE id = ?", (stage, stamp, role_id))
+        _record_stage(conn, role_id, role["stage"], stage, stamp, _optional(note))
+    return get_role(conn, role_id)
+
+
+def add_note(conn: sqlite3.Connection, role_id: str, text: str) -> dict:
+    """Add a dated note to a role."""
+    _active_role(conn, role_id)
+    text = _required(text, "text")
+    if len(text) > MAX_NOTE_LENGTH:
+        raise ValueError(f"Note is {len(text)} characters; the limit is {MAX_NOTE_LENGTH}.")
+    conn.execute("INSERT INTO notes (role_id, text, created_at) VALUES (?, ?, ?)", (role_id, text, now()))
+    return get_role(conn, role_id)
+
+
+def set_next_action(conn: sqlite3.Connection, role_id: str, action: str, due_date: str | None = None) -> dict:
+    """Set the role's next step and, optionally, when it's due (YYYY-MM-DD). An empty action clears both."""
+    _active_role(conn, role_id)
+    action = _optional(action)
+    if due_date:
+        try:
+            due_date = date.fromisoformat(due_date).isoformat()
+        except ValueError:
+            raise ValueError(f"due_date {due_date!r} isn't a date. Use YYYY-MM-DD.") from None
+    if action is None:
+        due_date = None
+    conn.execute(
+        "UPDATE roles SET next_action = ?, next_due = ?, updated_at = ? WHERE id = ?",
+        (action, due_date or None, now(), role_id),
+    )
+    return get_role(conn, role_id)
+
+
+def archive_role(conn: sqlite3.Connection, role_id: str, reason: str) -> dict:
+    """Hide a role from lists, search and the summary. Nothing is deleted; restore_role brings it back."""
+    _active_role(conn, role_id)
+    reason = _required(reason, "reason")
+    stamp = now()
+    conn.execute(
+        "UPDATE roles SET archived_at = ?, archive_reason = ?, updated_at = ? WHERE id = ?",
+        (stamp, reason, stamp, role_id),
+    )
+    return get_role(conn, role_id)
+
+
+def restore_role(conn: sqlite3.Connection, role_id: str) -> dict:
+    """Undo archive_role."""
+    role = _existing_role(conn, role_id)
+    if role["archived_at"] is None:
+        raise ValueError(f"Role {role_id!r} isn't archived.")
+    conn.execute(
+        "UPDATE roles SET archived_at = NULL, archive_reason = NULL, updated_at = ? WHERE id = ?",
+        (now(), role_id),
+    )
+    return get_role(conn, role_id)
+
+
+def _existing_role(conn, role_id: str) -> sqlite3.Row:
+    role = conn.execute("SELECT * FROM roles WHERE id = ?", (role_id,)).fetchone()
+    if role is None:
+        raise ValueError(f"No role with id {role_id!r}. Use search_roles to find the right id.")
+    return role
+
+
+def _active_role(conn, role_id: str) -> sqlite3.Row:
+    role = _existing_role(conn, role_id)
+    if role["archived_at"] is not None:
+        raise ValueError(f"Role {role_id!r} is archived. Restore it before changing it.")
+    return role
+
+
+def _unique_id(conn, text: str) -> str:
+    base = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:60].rstrip("-") or "role"
+    role_id, n = base, 2
+    while conn.execute("SELECT 1 FROM roles WHERE id = ?", (role_id,)).fetchone():
+        role_id, n = f"{base}-{n}", n + 1
+    return role_id
+
+
+def _check_choice(value, allowed: tuple, name: str) -> None:
+    if value is not None and value not in allowed:
+        raise ValueError(f"Unknown {name} {value!r}. Use one of: {', '.join(allowed)}")
+
+
+def _required(value: str | None, name: str) -> str:
+    value = (value or "").strip()
+    if not value:
+        raise ValueError(f"{name} can't be empty.")
+    return value
+
+
+def _optional(value: str | None) -> str | None:
+    return (value or "").strip() or None
 
 
 def _record_stage(conn, role_id, from_stage, to_stage, changed_at, note):

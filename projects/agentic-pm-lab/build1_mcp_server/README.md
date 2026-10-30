@@ -41,14 +41,15 @@ There is deliberately no hard-delete tool. `archive_role` hides a role instead, 
 | `get_role` | Full record for one role: details, stage history, notes | `role_id` | 0 |
 | `search_roles` | Find roles by company, title or keyword | `query` | 0 |
 | `pipeline_summary` | Counts by stage, plus roles with no activity for N days | `stale_days?` (default 14) | 0 |
-| `add_role` | Add a new role to the pipeline | `company`, `title`, `url?`, `location?`, `source?`, `stage?` (default `saved`) | 1 |
+| `add_role` | Add a new role to the pipeline | `company`, `title`, `stage?` (default `saved`), `track?`, `channel?`, `job_url?`, `spec_url?`, `next_action?` | 1 |
 | `update_stage` | Move a role to a new stage, recording the change in its history | `role_id`, `stage` (enum), `note?` | 1 |
 | `add_note` | Add a dated note to a role | `role_id`, `text` | 1 |
 | `set_next_action` | Set the next step and due date for a role | `role_id`, `action`, `due_date` (YYYY-MM-DD) | 1 |
 | `archive_role` | Hide a role from the pipeline (can be restored) | `role_id`, `reason` | 2 |
+| `restore_role` | Bring an archived role back | `role_id` | 1 |
 | `assess_fit` | Run the Build 0 agent on a role's spec against your CV | `role_id`, `model?` (default Haiku) | 2, costs money and sends the CV to the API |
 
-`stage` is one of `saved`, `applied`, `talking`, `interviewing`, `offer`, `closed`, the stages the existing job tracker uses. `?` marks an optional input.
+`stage` is one of `saved`, `applied`, `talking`, `interviewing`, `offer`, `closed`, the stages the existing job tracker uses. `track` is one of `ai`, `integrations`, `general`, `solutions`, and `channel` one of `Direct`, `Recruiter`, `Inbound`, `Referral`. `?` marks an optional input. An archived role can be read or restored but not changed.
 
 ### Resources
 
