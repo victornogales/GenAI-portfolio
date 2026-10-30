@@ -69,6 +69,18 @@ There is deliberately no hard-delete tool. `archive_role` hides a role instead, 
 - **`list_roles` vs `search_roles`.** Keep both only if they stay clearly different (filtering vs free-text search). Otherwise merge them into `list_roles` with an optional `query`.
 - **`assess_fit`.** It links Build 1 to Build 0 but costs money and sends the CV to Anthropic's API. Leaving it out keeps the server fully local.
 
+## Try it with the MCP Inspector
+
+The Inspector is a browser UI for calling the server's tools by hand. It needs Node.js. From the `agentic-pm-lab` folder:
+
+```
+uv run mcp dev build1_mcp_server/server.py
+```
+
+Open the URL it prints, click **Connect**, then **Tools → List Tools**. The server reads `data_private/pipeline.db`; to use another database, set `PIPELINE_DB` first (in PowerShell, `$env:PIPELINE_DB = "data_public/pipeline_demo.db"`).
+
+So far the server has the four read-only tools: `pipeline_summary`, `list_roles`, `search_roles` and `get_role`.
+
 ## Install in Claude Desktop
 
 _TODO_
