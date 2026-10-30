@@ -97,7 +97,9 @@ def import_apps(apps: list[Application], db_path: Path) -> dict:
     counts = {"added": 0, "updated": 0, "unchanged": 0, "fits_added": 0}
     with store.connect(db_path) as conn:
         for app in apps:
-            counts[store.upsert_role(conn, app.id, app.role_fields(), updated_at=app.updated)] += 1
+            # Roles never edited in the tracker have no "updated"; their tracker date is the last activity.
+            stamp = app.updated or app.date
+            counts[store.upsert_role(conn, app.id, app.role_fields(), updated_at=stamp)] += 1
             if app.fit and store.add_fit_assessment(conn, app.id, app.fit.model_dump()):
                 counts["fits_added"] += 1
     return counts
