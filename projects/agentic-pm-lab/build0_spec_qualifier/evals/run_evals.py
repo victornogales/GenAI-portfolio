@@ -9,7 +9,8 @@ expected one:
 - the fit score is inside the accepted range
 - every hard check in checks.py passes
 
-A case passes only if all of these hold. Run from the agentic-pm-lab folder:
+A case passes only if all of these hold. Cases whose "expected" is null (no
+reviewed answer key yet) are skipped. Run from the agentic-pm-lab folder:
 
     uv run python -m build0_spec_qualifier.evals.run_evals --model claude-haiku-5-5
     uv run python -m build0_spec_qualifier.evals.run_evals --case demo_spec1 --repeats 3
@@ -225,9 +226,13 @@ def main() -> None:
     parser.add_argument("--repeats", type=int, default=1, help="Runs per case, to measure consistency.")
     args = parser.parse_args()
 
-    cases = sorted(GOLDEN_DIR.glob(f"{args.case}.json"))
+    matched = sorted(GOLDEN_DIR.glob(f"{args.case}.json"))
+    # A case without a reviewed answer key can't be graded, so it's skipped.
+    cases = [p for p in matched if json.loads(p.read_text(encoding="utf-8")).get("expected")]
+    for path in sorted(set(matched) - set(cases)):
+        print(f"{path.stem}... SKIP (no answer key yet)")
     if not cases:
-        sys.exit(f"No golden cases match {args.case!r} in {GOLDEN_DIR}")
+        sys.exit(f"No golden cases with an answer key match {args.case!r} in {GOLDEN_DIR}")
 
     started = datetime.now()
     run_id = f"eval-{started:%Y%m%d-%H%M}"
