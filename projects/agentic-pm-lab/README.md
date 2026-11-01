@@ -12,6 +12,7 @@ A small agent, fenced in by deterministic code and measured with evals, can judg
 |---|---|---|---|
 | 0 | Spec qualifier: a single agent that assesses how well a CV fits a job spec | Working, evaluated | [build0_spec_qualifier](build0_spec_qualifier) |
 | 1 | MCP server: exposes the job pipeline to Claude through tools, resources and prompts | In progress | [build1_mcp_server](build1_mcp_server) |
+| 2 | Agent as a tool: the MCP server runs the Build 0 agent (`assess_fit`), with cost, confirmation and checks designed in | Planned | |
 
 ## Build 0: the spec qualifier
 

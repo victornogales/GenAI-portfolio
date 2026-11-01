@@ -48,9 +48,9 @@ There is deliberately no hard-delete tool. `archive_role` hides a role instead, 
 | `set_next_action` | Set the next step and due date for a role | `role_id`, `action`, `due_date` (YYYY-MM-DD) | 1 |
 | `archive_role` | Hide a role from the pipeline (can be restored) | `role_id`, `reason` | 2 |
 | `restore_role` | Bring an archived role back | `role_id` | 1 |
-| `assess_fit` | Run the Build 0 agent on a role's spec against your CV | `role_id`, `model?` (default Haiku) | 2, costs money and sends the CV to the API |
+| `record_fit_assessment` | Save a fit assessment made elsewhere (by Claude in the chat, or a Build 0 run) | `role_id`, `verdict` (enum), `score` (0-100), `summary`, `matches?`, `gaps?`, `source`, `assessed?` (default today) | 1 |
 
-`stage` is one of `saved`, `applied`, `talking`, `interviewing`, `offer`, `closed`, the stages the existing job tracker uses. `track` is one of `ai`, `integrations`, `general`, `solutions`, and `channel` one of `Direct`, `Recruiter`, `Inbound`, `Referral`. `?` marks an optional input. An archived role can be read or restored but not changed.
+`stage` is one of `saved`, `applied`, `talking`, `interviewing`, `offer`, `closed`, the stages the existing job tracker uses. `verdict` is one of `strong`, `good`, `stretch`, `weak`; `matches` and `gaps` are lists of `{title, detail}`. `track` is one of `ai`, `integrations`, `general`, `solutions`, and `channel` one of `Direct`, `Recruiter`, `Inbound`, `Referral`. `?` marks an optional input. An archived role can be read or restored but not changed.
 
 ### Resources
 
@@ -66,10 +66,19 @@ There is deliberately no hard-delete tool. `archive_role` hides a role instead, 
 | `weekly_review` | none | What's stale, what's due and what to do next |
 | `prepare_interview` | `role_id` | Pulls together the role, your notes and the fit assessment |
 
+### Decisions
+
+**No `assess_fit` tool in Build 1 (decided 2026-11-01).** The server can store and show fit assessments but doesn't create them. Running the Build 0 agent from the server would mean every call costs money, the server needs an API key, the CV and spec leave the machine, and a 30-60 second agent run sits inside a tool call. It would also need the spec text, while roles only store a link to it. Instead:
+
+- New assessments are made outside the server: with Build 0 from the command line, or by Claude in the chat with the CV attached.
+- `record_fit_assessment` (tier 1) saves them to the pipeline, so the server stays local, free and keyless.
+- The trade-off: an assessment saved this way hasn't been through Build 0's hard checks. `source` records where it came from so that stays visible.
+
+Running one agent as a tool of another is the subject of Build 2.
+
 ### Open questions
 
 - **`list_roles` vs `search_roles`.** Keep both only if they stay clearly different (filtering vs free-text search). Otherwise merge them into `list_roles` with an optional `query`.
-- **`assess_fit`.** It links Build 1 to Build 0 but costs money and sends the CV to Anthropic's API. Leaving it out keeps the server fully local.
 
 ## Try it with the MCP Inspector
 
@@ -81,7 +90,7 @@ uv run mcp dev build1_mcp_server/server.py
 
 Open the URL it prints, click **Connect**, then **Tools → List Tools**. The server reads `data_private/pipeline.db`; to use another database, set `PIPELINE_DB` first (in PowerShell, `$env:PIPELINE_DB = "data_public/pipeline_demo.db"`).
 
-The server has every tool in the table below except `assess_fit`. The write tools change whichever database the server is using, so try them on the demo database or a copy before using your real one.
+The server has every tool, resource and prompt in the tables below except `record_fit_assessment`, which isn't built yet. Resources and prompts have their own tabs in the Inspector. The write tools change whichever database the server is using, so try them on the demo database or a copy before using your real one.
 
 ## Install in Claude Desktop
 

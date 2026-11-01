@@ -1,8 +1,9 @@
 """MCP server for the job pipeline: tools, resources and prompts.
 
-Every tool is a thin wrapper over a store.py function; the server itself
-holds no logic. Each tool's annotations follow the risk tiers in the README:
-tier 0 reads, tier 1 safe writes that can be undone, tier 2 archive_role.
+Every tool, resource and prompt is a thin wrapper over a store.py function;
+the server itself holds no logic. Each tool's annotations follow the risk
+tiers in the README: tier 0 reads, tier 1 safe writes that can be undone,
+tier 2 archive_role. Resources and prompts only read.
 
 The database is data_private/pipeline.db, or the file named by the
 PIPELINE_DB environment variable (e.g. data_public/pipeline_demo.db).
@@ -13,15 +14,17 @@ Run from the agentic-pm-lab folder:
     uv run python -m build1_mcp_server.server       # plain stdio server
 """
 
+import json
 import os
 import sys
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Callable, Literal
 
 from mcp.server.mcpserver import MCPServer
-from mcp.server.mcpserver.exceptions import ToolError
-from mcp.types import ToolAnnotations
+from mcp.server.mcpserver.exceptions import ResourceError, ResourceNotFoundError, ToolError
+from mcp.shared.exceptions import MCPError
+from mcp.types import INVALID_PARAMS, ToolAnnotations
 from pydantic import Field
 
 # `mcp dev` loads this file by path rather than as part of the package.
@@ -59,17 +62,22 @@ mcp = MCPServer(
 )
 
 
+def _prompt_error(message: str) -> MCPError:
+    return MCPError(INVALID_PARAMS, message)
+
+
 @contextmanager
-def _db():
-    """Open the database. Expected failures become ToolError, so the model sees their message;
-    any other exception is treated by the SDK as a crash and its text is withheld."""
+def _db(error: Callable[[str], Exception] = ToolError):
+    """Open the database. Expected failures are raised as `error` (ToolError for tools, ResourceError
+    for resources, MCPError for prompts) so the client sees their message; any other exception is
+    treated by the SDK as a crash and its text is withheld."""
     if not DB_PATH.exists():
-        raise ToolError(f"No pipeline database at {DB_PATH}. Run import_pipeline.py first or set PIPELINE_DB.")
+        raise error(f"No pipeline database at {DB_PATH}. Run import_pipeline.py first or set PIPELINE_DB.")
     try:
         with store.connect(DB_PATH) as conn:
             yield conn
     except ValueError as exc:
-        raise ToolError(str(exc)) from exc
+        raise error(str(exc)) from exc
 
 
 @mcp.tool(annotations=READ_ONLY)
@@ -197,6 +205,98 @@ def restore_role(role_id: RoleId) -> dict:
     list_roles with include_archived set to true."""
     with _db() as conn:
         return store.restore_role(conn, role_id)
+
+
+# Resources: read-only context a client can attach to a conversation.
+
+
+@mcp.resource(
+    "pipeline://summary",
+    name="pipeline_summary",
+    title="Pipeline summary",
+    description="The pipeline at a glance: counts by stage, flagged and stale roles, due next actions.",
+    mime_type="application/json",
+)
+def summary_resource() -> str:
+    with _db(ResourceError) as conn:
+        return json.dumps(store.pipeline_summary(conn), indent=2, ensure_ascii=False)
+
+
+@mcp.resource(
+    "pipeline://roles/{role_id}",
+    name="role",
+    title="Role record",
+    description="One role's full record: details, stage history, notes and fit assessments.",
+    mime_type="application/json",
+)
+def role_resource(role_id: str) -> str:
+    with _db(ResourceError) as conn:
+        role = store.get_role(conn, role_id)
+    if role is None:
+        raise ResourceNotFoundError(f"No role with id {role_id!r}.")
+    return json.dumps(role, indent=2, ensure_ascii=False)
+
+
+# Prompts: ready-made requests the user picks from the client's menu. Each one
+# includes the current data, so Claude can answer without calling a tool first.
+
+
+@mcp.prompt(
+    name="weekly_review",
+    title="Weekly pipeline review",
+    description="Review the pipeline: where things stand, what's due or stale, and this week's priorities.",
+)
+def weekly_review() -> str:
+    with _db(_prompt_error) as conn:
+        summary = store.pipeline_summary(conn)
+        active = store.list_roles(conn, limit=100)
+    return f"""Give me my weekly job-search review. Here is my pipeline as of {summary['today']}.
+
+<pipeline_summary>
+{json.dumps(summary, indent=2, ensure_ascii=False)}
+</pipeline_summary>
+
+<roles>
+{json.dumps([r for r in active if r['stage'] != 'closed'], indent=2, ensure_ascii=False)}
+</roles>
+
+Cover, briefly:
+1. Where things stand: one line per stage with its count.
+2. Overdue and due next actions, most urgent first.
+3. Stale roles: for each, recommend chasing, closing or leaving it, with a one-line reason.
+4. My top three priorities for this week, favouring flagged roles and later stages.
+
+Don't change anything yet. End with a short list of the changes you'd suggest (stage moves, next \
+actions, notes) and ask which ones to apply with the pipeline tools."""
+
+
+@mcp.prompt(
+    name="prepare_interview",
+    title="Prepare for an interview",
+    description="Interview prep for one role, from its record, notes and fit assessment.",
+)
+def prepare_interview(
+    role_id: Annotated[str, Field(description="The role's id, e.g. 'telnyx-devex-plg'.")],
+) -> str:
+    with _db(_prompt_error) as conn:
+        role = store.get_role(conn, role_id)
+    if role is None:
+        raise _prompt_error(f"No role with id {role_id!r}. Use search_roles to find the right id.")
+    return f"""Help me prepare for my interview for this role. Here is everything in my pipeline about it.
+
+<role>
+{json.dumps(role, indent=2, ensure_ascii=False)}
+</role>
+
+Prepare me with:
+1. The role in two lines: company, title and what they seem to need most.
+2. Where things stand, from the stage history and notes, including anyone named.
+3. My strongest evidence for this role, from the fit assessment's matches.
+4. The hardest questions I'm likely to get, from the gaps, each with an honest angle to answer it.
+5. Five good questions for me to ask them.
+
+Use only what's in the record and say clearly when you're inferring. If there's no fit assessment, \
+say so and base points 3 and 4 on the job title and notes instead."""
 
 
 if __name__ == "__main__":

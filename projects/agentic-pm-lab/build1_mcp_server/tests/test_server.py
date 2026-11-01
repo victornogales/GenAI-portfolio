@@ -122,3 +122,52 @@ def test_missing_database_is_reported_not_created(tmp_path):
     _, (result,) = call(db_path, ("list_roles", {}))
     assert result.is_error and "No pipeline database" in result.content[0].text
     assert not db_path.exists()
+
+
+def with_session(db_path, fn):
+    """Start the server against db_path and run `await fn(session)`."""
+    params = StdioServerParameters(
+        command=sys.executable,
+        args=["-m", "build1_mcp_server.server"],
+        env={**os.environ, "PIPELINE_DB": str(db_path)},
+    )
+
+    async def run():
+        async with stdio_client(params) as (read, write):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                return await fn(session)
+
+    return asyncio.run(run())
+
+
+def test_resources(db):
+    async def check(s):
+        listed = [str(r.uri) for r in (await s.list_resources()).resources]
+        templates = [t.uri_template for t in (await s.list_resource_templates()).resource_templates]
+        summary = json.loads((await s.read_resource("pipeline://summary")).contents[0].text)
+        role = json.loads((await s.read_resource("pipeline://roles/acme-pm")).contents[0].text)
+        with pytest.raises(Exception, match="No role with id 'nope'"):
+            await s.read_resource("pipeline://roles/nope")
+        return listed, templates, summary, role
+
+    listed, templates, summary, role = with_session(db, check)
+    assert listed == ["pipeline://summary"]
+    assert templates == ["pipeline://roles/{role_id}"]
+    assert summary["by_stage"] == {"talking": 1}
+    assert role["company"] == "Acme"
+
+
+def test_prompts_include_current_pipeline_data(db):
+    async def check(s):
+        prompts = {p.name: [a.name for a in p.arguments or []] for p in (await s.list_prompts()).prompts}
+        weekly = (await s.get_prompt("weekly_review")).messages[0].content.text
+        prep = (await s.get_prompt("prepare_interview", {"role_id": "acme-pm"})).messages[0].content.text
+        with pytest.raises(Exception, match="No role with id 'nope'"):
+            await s.get_prompt("prepare_interview", {"role_id": "nope"})
+        return prompts, weekly, prep
+
+    prompts, weekly, prep = with_session(db, check)
+    assert prompts == {"weekly_review": [], "prepare_interview": ["role_id"]}
+    assert "Platform PM" in weekly and "top three priorities" in weekly
+    assert "Prep for call." in prep and "hardest questions" in prep
