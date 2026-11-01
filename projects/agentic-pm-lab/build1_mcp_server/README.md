@@ -74,7 +74,7 @@ There is deliberately no hard-delete tool. `archive_role` hides a role instead, 
 - `record_fit_assessment` (tier 1) saves them to the pipeline, so the server stays local, free and keyless.
 - The trade-off: an assessment saved this way hasn't been through Build 0's hard checks. `source` records where it came from so that stays visible.
 
-Running one agent as a tool of another is the subject of Build 2.
+This fits Build 2, the Application Pack workflow: it runs Build 0 directly as its first step, behind your go or no-go, and records the result in the pipeline through this server.
 
 ### Open questions
 

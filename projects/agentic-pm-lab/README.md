@@ -12,7 +12,10 @@ A small agent, fenced in by deterministic code and measured with evals, can judg
 |---|---|---|---|
 | 0 | Spec qualifier: a single agent that assesses how well a CV fits a job spec | Working, evaluated | [build0_spec_qualifier](build0_spec_qualifier) |
 | 1 | MCP server: exposes the job pipeline to Claude through tools, resources and prompts | In progress | [build1_mcp_server](build1_mcp_server) |
-| 2 | Agent as a tool: the MCP server runs the Build 0 agent (`assess_fit`), with cost, confirmation and checks designed in | Planned | |
+| 2 | Application Pack workflow: qualify a spec, then draft a tailored CV, cover letter and outreach, each through a review queue, with nothing irreversible done without approval | Planned | |
+| 3 | Framework rebuild: the same Application Pack rebuilt on the Claude Agent SDK or LangGraph, with evals on every change | Planned | |
+| 4 | Multi-agent Job Desk: a morning orchestrator that finds new roles and sends subagents to research, qualify and draft, then asks for a shortlist approval | Planned | |
+| 5 | PM pilot: the system packaged as a template other PMs install, piloted with 3-5 PMs | Planned | |
 
 ## Build 0: the spec qualifier
 
