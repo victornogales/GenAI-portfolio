@@ -34,6 +34,8 @@ Every tool has a tier that decides how much the client should check with you bef
 
 There is deliberately no hard-delete tool. `archive_role` hides a role instead, so the worst mistake stays reversible.
 
+Every change is audited. Each write in `store.py` adds a row to the `audit` table (when, actor, action, role, what changed) in the same transaction as the change, so a change is never saved without its audit row. `actor` is `mcp` for the tools, `import` or `demo`. A write that changes nothing (the same stage, the same next action, an assessment already saved) leaves no row. Rejected attempts change nothing and aren't logged.
+
 ### Tools
 
 | Tool | One-liner | Inputs | Tier |
@@ -42,6 +44,7 @@ There is deliberately no hard-delete tool. `archive_role` hides a role instead, 
 | `get_role` | Full record for one role: details, stage history, notes | `role_id` | 0 |
 | `search_roles` | Find roles by company, title or keyword | `query` | 0 |
 | `pipeline_summary` | Counts by stage, plus roles with no activity for N days | `stale_days?` (default 14) | 0 |
+| `recent_changes` | The audit log: recent changes, newest first | `limit?` (default 20), `role_id?` | 0 |
 | `add_role` | Add a new role to the pipeline | `company`, `title`, `stage?` (default `saved`), `track?`, `channel?`, `job_url?`, `spec_url?`, `next_action?` | 1 |
 | `update_stage` | Move a role to a new stage, recording the change in its history | `role_id`, `stage` (enum), `note?` | 1 |
 | `add_note` | Add a dated note to a role | `role_id`, `text` | 1 |
@@ -58,6 +61,7 @@ There is deliberately no hard-delete tool. `archive_role` hides a role instead, 
 |---|---|
 | `pipeline://summary` | The pipeline at a glance: counts by stage, stale roles, upcoming next actions |
 | `pipeline://roles/{role_id}` | One role's full record |
+| `pipeline://audit` | The 50 most recent changes: when, who, what and to which role |
 
 ### Prompts
 
@@ -90,7 +94,7 @@ uv run mcp dev build1_mcp_server/server.py
 
 Open the URL it prints, click **Connect**, then **Tools → List Tools**. The server reads `data_private/pipeline.db`; to use another database, set `PIPELINE_DB` first (in PowerShell, `$env:PIPELINE_DB = "data_public/pipeline_demo.db"`).
 
-The server has every tool, resource and prompt in the tables below except `record_fit_assessment`, which isn't built yet. Resources and prompts have their own tabs in the Inspector. The write tools change whichever database the server is using, so try them on the demo database or a copy before using your real one.
+The server has every tool, resource and prompt in the tables below. Resources and prompts have their own tabs in the Inspector. The write tools change whichever database the server is using, so try them on the demo database or a copy before using your real one.
 
 ## Install in Claude Desktop
 

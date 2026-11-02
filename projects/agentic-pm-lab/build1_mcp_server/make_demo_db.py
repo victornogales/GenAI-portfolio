@@ -156,17 +156,17 @@ def build(out: Path, today: date | None = None) -> dict:
                 "flagged": r.get("flagged", False), "job_url": None, "spec_url": None, "cv_url": None,
             }
             for days_ago, stage, note in r["history"]:
-                store.upsert_role(conn, r["id"], fields | {"stage": stage}, updated_at=iso(days_ago, today), note=note)
+                store.upsert_role(conn, r["id"], fields | {"stage": stage}, updated_at=iso(days_ago, today), note=note, actor="demo")
             if "fit" in r:
                 f = r["fit"]
-                store.add_fit_assessment(conn, r["id"], f | {"assessed": iso(f["days_ago"], today)})
+                store.add_fit_assessment(conn, r["id"], f | {"assessed": iso(f["days_ago"], today)}, actor="demo")
             for days_ago, text in r.get("notes", []):
-                store.add_note(conn, r["id"], text, created_at=iso(days_ago, today))
+                store.add_note(conn, r["id"], text, created_at=iso(days_ago, today), actor="demo")
             if "next" in r:
                 action, due_in = r["next"]
-                store.set_next_action(conn, r["id"], action, due_date=(today + timedelta(days=due_in)).isoformat())
+                store.set_next_action(conn, r["id"], action, due_date=(today + timedelta(days=due_in)).isoformat(), actor="demo")
             if "archive" in r:
-                store.archive_role(conn, r["id"], r["archive"])
+                store.archive_role(conn, r["id"], r["archive"], actor="demo")
         return store.pipeline_summary(conn, today=today)
 
 

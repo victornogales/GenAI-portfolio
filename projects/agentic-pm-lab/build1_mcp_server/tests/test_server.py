@@ -46,8 +46,8 @@ def call(db_path, *calls):
 def test_tools_carry_their_risk_tier(db):
     tools, _ = call(db)
     by_name = {t.name: t.annotations for t in tools}
-    reads = {"get_role", "list_roles", "pipeline_summary", "search_roles"}
-    writes = {"add_role", "update_stage", "add_note", "set_next_action", "restore_role"}
+    reads = {"get_role", "list_roles", "pipeline_summary", "search_roles", "recent_changes"}
+    writes = {"add_role", "update_stage", "add_note", "set_next_action", "restore_role", "record_fit_assessment"}
     assert set(by_name) == reads | writes | {"archive_role"}
     assert all(by_name[n].read_only_hint for n in reads)
     assert all(not by_name[n].read_only_hint and not by_name[n].destructive_hint for n in writes)
@@ -152,7 +152,7 @@ def test_resources(db):
         return listed, templates, summary, role
 
     listed, templates, summary, role = with_session(db, check)
-    assert listed == ["pipeline://summary"]
+    assert sorted(listed) == ["pipeline://audit", "pipeline://summary"]
     assert templates == ["pipeline://roles/{role_id}"]
     assert summary["by_stage"] == {"talking": 1}
     assert role["company"] == "Acme"
@@ -171,3 +171,31 @@ def test_prompts_include_current_pipeline_data(db):
     assert prompts == {"weekly_review": [], "prepare_interview": ["role_id"]}
     assert "Platform PM" in weekly and "top three priorities" in weekly
     assert "Prep for call." in prep and "hardest questions" in prep
+
+
+def test_record_fit_assessment_and_audit_over_stdio(db):
+    fit = {
+        "role_id": "acme-pm", "verdict": "good", "score": 74, "summary": "Strong platform match.",
+        "source": "Chat with master CV attached", "assessed": "2026-11-02",
+        "matches": [{"title": "Developer platforms", "detail": "Shipped SDKs and provisioning APIs."}],
+        "gaps": [{"title": "AI agents", "detail": "Agent work is internal only."}],
+    }
+    _, (saved, again, bad_score, changes) = call(
+        db,
+        ("record_fit_assessment", fit),
+        ("record_fit_assessment", fit),
+        ("record_fit_assessment", fit | {"score": 140}),
+        ("recent_changes", {"role_id": "acme-pm"}),
+    )
+    role = json.loads(saved.content[0].text)
+    assert [(f["verdict"], f["score"]) for f in role["fit_assessments"]] == [("good", 74)]
+    assert role["fit_assessments"][0]["gaps"][0]["title"] == "AI agents"
+    assert len(json.loads(again.content[0].text)["fit_assessments"]) == 1
+    assert bad_score.is_error
+    log = changes.structured_content["result"]
+    assert [(r["actor"], r["action"]) for r in log] == [("mcp", "record_fit_assessment"), ("import", "add_role")]
+
+    async def read_audit(s):
+        return json.loads((await s.read_resource("pipeline://audit")).contents[0].text)
+
+    assert [r["action"] for r in with_session(db, read_audit)][0] == "record_fit_assessment"

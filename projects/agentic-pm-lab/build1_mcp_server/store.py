@@ -5,9 +5,13 @@ Tables:
     stage_history     every stage change, oldest first
     notes             dated free-text notes per role
     fit_assessments   fit assessments per role, newest by assessed date
+    audit             one row per change: when, who (actor), what and to which role
 
 Every write function takes an open connection and leaves committing to the
 caller, so a whole import or tool call succeeds or fails as one transaction.
+Each write that changes something adds its audit row in that same
+transaction, so a change and its audit row are saved together or not at all.
+`actor` says who made it: "mcp" (a server tool), "import" or "demo".
 Read functions return plain dicts and lists, ready to send back as JSON.
 Archived roles are left out of reads unless include_archived=True.
 """
@@ -80,7 +84,17 @@ CREATE TABLE IF NOT EXISTS fit_assessments (
     UNIQUE (role_id, assessed, source)
 );
 
+CREATE TABLE IF NOT EXISTS audit (
+    id       INTEGER PRIMARY KEY,
+    at       TEXT NOT NULL,
+    actor    TEXT NOT NULL,
+    action   TEXT NOT NULL,
+    role_id  TEXT,
+    details  TEXT NOT NULL DEFAULT '{{}}'
+);
+
 CREATE INDEX IF NOT EXISTS idx_roles_stage ON roles(stage);
+CREATE INDEX IF NOT EXISTS idx_audit_role ON audit(role_id);
 CREATE INDEX IF NOT EXISTS idx_history_role ON stage_history(role_id);
 CREATE INDEX IF NOT EXISTS idx_notes_role ON notes(role_id);
 CREATE INDEX IF NOT EXISTS idx_fit_role ON fit_assessments(role_id);
@@ -121,6 +135,7 @@ def upsert_role(
     fields: dict,
     updated_at: str | None = None,
     note: str = "Imported",
+    actor: str = "import",
 ) -> str:
     """Insert or update a role. Returns "added", "updated" or "unchanged".
 
@@ -140,6 +155,7 @@ def upsert_role(
             (role_id, *values.values(), stamp, stamp),
         )
         _record_stage(conn, role_id, None, values["stage"], stamp, note)
+        _audit(conn, actor, "add_role", role_id, {"fields": values})
         return "added"
 
     if all(existing[k] == v for k, v in values.items()):
@@ -151,10 +167,12 @@ def upsert_role(
     )
     if existing["stage"] != values["stage"]:
         _record_stage(conn, role_id, existing["stage"], values["stage"], stamp, note)
+    changed = {k: [existing[k], v] for k, v in values.items() if existing[k] != v}
+    _audit(conn, actor, "update_role", role_id, {"changed": changed})
     return "updated"
 
 
-def add_fit_assessment(conn: sqlite3.Connection, role_id: str, fit: dict) -> bool:
+def add_fit_assessment(conn: sqlite3.Connection, role_id: str, fit: dict, actor: str = "import") -> bool:
     """Store a fit assessment. Returns False if the same one (role, date, source) is already stored."""
     cursor = conn.execute(
         """INSERT OR IGNORE INTO fit_assessments
@@ -172,7 +190,11 @@ def add_fit_assessment(conn: sqlite3.Connection, role_id: str, fit: dict) -> boo
             now(),
         ),
     )
-    return cursor.rowcount == 1
+    if cursor.rowcount != 1:
+        return False
+    _audit(conn, actor, "record_fit_assessment", role_id,
+           {k: fit.get(k) for k in ("verdict", "score", "assessed", "source")})
+    return True
 
 
 # Writes used by the server's tools. Each validates its input, raises
@@ -194,6 +216,7 @@ def add_role(
     spec_url: str | None = None,
     next_action: str | None = None,
     today: date | None = None,
+    actor: str = "mcp",
 ) -> dict:
     """Add a new role. Its id is made from the company and title, e.g. "acme-platform-pm"."""
     company, title = _required(company, "company"), _required(title, "title")
@@ -223,10 +246,13 @@ def add_role(
         (role_id, *(int(fields[k]) if k == "flagged" else fields[k] for k in ROLE_FIELDS), stamp, stamp),
     )
     _record_stage(conn, role_id, None, stage, stamp, "Added")
+    _audit(conn, actor, "add_role", role_id, {"fields": {k: v for k, v in fields.items() if v not in (None, False)}})
     return get_role(conn, role_id)
 
 
-def update_stage(conn: sqlite3.Connection, role_id: str, stage: str, note: str | None = None) -> dict:
+def update_stage(
+    conn: sqlite3.Connection, role_id: str, stage: str, note: str | None = None, actor: str = "mcp"
+) -> dict:
     """Move a role to a new stage and record it in the history. Moving to the current stage changes nothing."""
     _check_choice(stage, STAGES, "stage")
     role = _active_role(conn, role_id)
@@ -234,22 +260,29 @@ def update_stage(conn: sqlite3.Connection, role_id: str, stage: str, note: str |
         stamp = now()
         conn.execute("UPDATE roles SET stage = ?, updated_at = ? WHERE id = ?", (stage, stamp, role_id))
         _record_stage(conn, role_id, role["stage"], stage, stamp, _optional(note))
+        _audit(conn, actor, "update_stage", role_id, {"from": role["stage"], "to": stage, "note": _optional(note)})
     return get_role(conn, role_id)
 
 
-def add_note(conn: sqlite3.Connection, role_id: str, text: str, created_at: str | None = None) -> dict:
+def add_note(
+    conn: sqlite3.Connection, role_id: str, text: str, created_at: str | None = None, actor: str = "mcp"
+) -> dict:
     """Add a dated note to a role, dated now unless created_at is given (used for imports and demo data)."""
     _active_role(conn, role_id)
     text = _required(text, "text")
     if len(text) > MAX_NOTE_LENGTH:
         raise ValueError(f"Note is {len(text)} characters; the limit is {MAX_NOTE_LENGTH}.")
     conn.execute("INSERT INTO notes (role_id, text, created_at) VALUES (?, ?, ?)", (role_id, text, created_at or now()))
+    _audit(conn, actor, "add_note", role_id, {"text": text})
     return get_role(conn, role_id)
 
 
-def set_next_action(conn: sqlite3.Connection, role_id: str, action: str, due_date: str | None = None) -> dict:
-    """Set the role's next step and, optionally, when it's due (YYYY-MM-DD). An empty action clears both."""
-    _active_role(conn, role_id)
+def set_next_action(
+    conn: sqlite3.Connection, role_id: str, action: str, due_date: str | None = None, actor: str = "mcp"
+) -> dict:
+    """Set the role's next step and, optionally, when it's due (YYYY-MM-DD). An empty action clears both.
+    Setting the same action and date again changes nothing."""
+    role = _active_role(conn, role_id)
     action = _optional(action)
     if due_date:
         try:
@@ -258,14 +291,18 @@ def set_next_action(conn: sqlite3.Connection, role_id: str, action: str, due_dat
             raise ValueError(f"due_date {due_date!r} isn't a date. Use YYYY-MM-DD.") from None
     if action is None:
         due_date = None
-    conn.execute(
-        "UPDATE roles SET next_action = ?, next_due = ?, updated_at = ? WHERE id = ?",
-        (action, due_date or None, now(), role_id),
-    )
+    before = {"action": role["next_action"], "due_date": role["next_due"]}
+    after = {"action": action, "due_date": due_date or None}
+    if after != before:
+        conn.execute(
+            "UPDATE roles SET next_action = ?, next_due = ?, updated_at = ? WHERE id = ?",
+            (after["action"], after["due_date"], now(), role_id),
+        )
+        _audit(conn, actor, "set_next_action", role_id, {"before": before, "after": after})
     return get_role(conn, role_id)
 
 
-def archive_role(conn: sqlite3.Connection, role_id: str, reason: str) -> dict:
+def archive_role(conn: sqlite3.Connection, role_id: str, reason: str, actor: str = "mcp") -> dict:
     """Hide a role from lists, search and the summary. Nothing is deleted; restore_role brings it back."""
     _active_role(conn, role_id)
     reason = _required(reason, "reason")
@@ -274,10 +311,11 @@ def archive_role(conn: sqlite3.Connection, role_id: str, reason: str) -> dict:
         "UPDATE roles SET archived_at = ?, archive_reason = ?, updated_at = ? WHERE id = ?",
         (stamp, reason, stamp, role_id),
     )
+    _audit(conn, actor, "archive_role", role_id, {"reason": reason})
     return get_role(conn, role_id)
 
 
-def restore_role(conn: sqlite3.Connection, role_id: str) -> dict:
+def restore_role(conn: sqlite3.Connection, role_id: str, actor: str = "mcp") -> dict:
     """Undo archive_role."""
     role = _existing_role(conn, role_id)
     if role["archived_at"] is None:
@@ -286,6 +324,46 @@ def restore_role(conn: sqlite3.Connection, role_id: str) -> dict:
         "UPDATE roles SET archived_at = NULL, archive_reason = NULL, updated_at = ? WHERE id = ?",
         (now(), role_id),
     )
+    _audit(conn, actor, "restore_role", role_id, {"archive_reason": role["archive_reason"]})
+    return get_role(conn, role_id)
+
+
+def record_fit_assessment(
+    conn: sqlite3.Connection,
+    role_id: str,
+    verdict: str,
+    score: int,
+    summary: str,
+    source: str,
+    matches: list[dict] | None = None,
+    gaps: list[dict] | None = None,
+    assessed: str | None = None,
+    actor: str = "mcp",
+    today: date | None = None,
+) -> dict:
+    """Save a fit assessment made elsewhere (by Claude in a chat, or a Build 0 run).
+
+    Saving the same one again (same role, assessed date and source) changes nothing.
+    """
+    _active_role(conn, role_id)
+    _check_choice(verdict, VERDICTS, "verdict")
+    if isinstance(score, bool) or not isinstance(score, int) or not 0 <= score <= 100:
+        raise ValueError(f"score must be a whole number from 0 to 100, not {score!r}.")
+    summary, source = _required(summary, "summary"), _required(source, "source")
+    items = {}
+    for name, value in (("matches", matches), ("gaps", gaps)):
+        items[name] = []
+        for item in value or []:
+            title, detail = (item.get("title") or "").strip(), (item.get("detail") or "").strip()
+            if not title or not detail:
+                raise ValueError(f"Each of {name} needs a title and a detail.")
+            items[name].append({"title": title, "detail": detail})
+    try:
+        assessed = date.fromisoformat(assessed).isoformat() if assessed else (today or date.today()).isoformat()
+    except ValueError:
+        raise ValueError(f"assessed {assessed!r} isn't a date. Use YYYY-MM-DD.") from None
+    fit = {"verdict": verdict, "score": score, "summary": summary, "assessed": assessed, "source": source, **items}
+    add_fit_assessment(conn, role_id, fit, actor=actor)
     return get_role(conn, role_id)
 
 
@@ -325,6 +403,13 @@ def _required(value: str | None, name: str) -> str:
 
 def _optional(value: str | None) -> str | None:
     return (value or "").strip() or None
+
+
+def _audit(conn, actor: str, action: str, role_id: str | None, details: dict) -> None:
+    conn.execute(
+        "INSERT INTO audit (at, actor, action, role_id, details) VALUES (?, ?, ?, ?, ?)",
+        (now(), actor, action, role_id, json.dumps(details, ensure_ascii=False, default=str)),
+    )
 
 
 def _record_stage(conn, role_id, from_stage, to_stage, changed_at, note):
@@ -420,6 +505,17 @@ def get_role(conn: sqlite3.Connection, role_id: str) -> dict | None:
         )
     ]
     return result
+
+
+def audit_log(conn: sqlite3.Connection, limit: int = 20, role_id: str | None = None) -> list[dict]:
+    """The most recent changes, newest first, optionally for one role."""
+    sql, params = "SELECT id, at, actor, action, role_id, details FROM audit", []
+    if role_id:
+        sql += " WHERE role_id = ?"
+        params.append(role_id)
+    sql += " ORDER BY id DESC LIMIT ?"
+    params.append(max(1, min(limit, MAX_LIMIT)))
+    return [dict(r) | {"details": json.loads(r["details"])} for r in conn.execute(sql, params)]
 
 
 def pipeline_summary(conn: sqlite3.Connection, stale_days: int = 14, today: date | None = None) -> dict:

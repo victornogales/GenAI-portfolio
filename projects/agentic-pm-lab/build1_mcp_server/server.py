@@ -25,7 +25,7 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ResourceError, ResourceNotFoundError, ToolError
 from mcp.shared.exceptions import MCPError
 from mcp.types import INVALID_PARAMS, ToolAnnotations
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 # `mcp dev` loads this file by path rather than as part of the package.
 if __package__ in (None, ""):
@@ -38,7 +38,13 @@ DB_PATH = Path(os.environ.get("PIPELINE_DB", store.DEFAULT_DB))
 Stage = Literal["saved", "applied", "talking", "interviewing", "offer", "closed"]
 Track = Literal["ai", "integrations", "general", "solutions"]
 Channel = Literal["Direct", "Recruiter", "Inbound", "Referral"]
+Verdict = Literal["strong", "good", "stretch", "weak"]
 RoleId = Annotated[str, Field(description="The role's id, as returned by list_roles or search_roles.")]
+
+
+class FitItem(BaseModel):
+    title: str = Field(min_length=1, description="Short label, e.g. 'Developer platforms'.")
+    detail: str = Field(min_length=1, description="The evidence or the gap, in one or two sentences.")
 
 # Risk tiers (see README). Tier 0: changes nothing.
 READ_ONLY = ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False)
@@ -207,6 +213,42 @@ def restore_role(role_id: RoleId) -> dict:
         return store.restore_role(conn, role_id)
 
 
+@mcp.tool(annotations=SAFE_WRITE_REPEATABLE)
+def record_fit_assessment(
+    role_id: RoleId,
+    verdict: Annotated[Verdict, Field(description="Overall fit.")],
+    score: Annotated[int, Field(ge=0, le=100, description="Fit score from 0 to 100.")],
+    summary: Annotated[str, Field(min_length=1, description="Two or three sentences on the overall fit.")],
+    source: Annotated[str, Field(min_length=1, description="What was assessed against what, e.g. 'Job spec vs master CV, Build 0 run'.")],
+    matches: Annotated[list[FitItem] | None, Field(description="Where the CV meets the spec, strongest first.")] = None,
+    gaps: Annotated[list[FitItem] | None, Field(description="Where it falls short, most serious first.")] = None,
+    assessed: Annotated[str | None, Field(description="Date of the assessment, YYYY-MM-DD. Defaults to today.")] = None,
+) -> dict:
+    """Save a fit assessment of Victor against a role. This server doesn't assess fit itself: the assessment
+    is made elsewhere, by you in this conversation with his CV, or by a Build 0 run. Only record an
+    assessment that was actually made against his CV, base matches and gaps on its evidence, and say in
+    `source` how it was made. Saving the same assessment again (same role, date and source) changes nothing."""
+    with _db() as conn:
+        return store.record_fit_assessment(
+            conn, role_id, verdict, score, summary, source,
+            matches=[m.model_dump() for m in matches or []],
+            gaps=[g.model_dump() for g in gaps or []],
+            assessed=assessed,
+        )
+
+
+@mcp.tool(annotations=READ_ONLY)
+def recent_changes(
+    limit: Annotated[int, Field(ge=1, le=100, description="Maximum number of changes to return.")] = 20,
+    role_id: Annotated[str | None, Field(description="Only changes to this role.")] = None,
+) -> list[dict]:
+    """The audit log: the most recent changes to the pipeline, newest first, each with when it happened,
+    who made it (actor 'mcp' for these tools, 'import' or 'demo'), the action and what changed. Use it
+    for questions like "what did you change today?" or "what happened with this role?"."""
+    with _db() as conn:
+        return store.audit_log(conn, limit=limit, role_id=role_id)
+
+
 # Resources: read-only context a client can attach to a conversation.
 
 
@@ -235,6 +277,18 @@ def role_resource(role_id: str) -> str:
     if role is None:
         raise ResourceNotFoundError(f"No role with id {role_id!r}.")
     return json.dumps(role, indent=2, ensure_ascii=False)
+
+
+@mcp.resource(
+    "pipeline://audit",
+    name="audit_log",
+    title="Recent changes",
+    description="The 50 most recent changes to the pipeline, newest first: when, who, what and to which role.",
+    mime_type="application/json",
+)
+def audit_resource() -> str:
+    with _db(ResourceError) as conn:
+        return json.dumps(store.audit_log(conn, limit=50), indent=2, ensure_ascii=False)
 
 
 # Prompts: ready-made requests the user picks from the client's menu. Each one
