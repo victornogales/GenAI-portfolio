@@ -91,6 +91,8 @@ uv run python -m build0_spec_qualifier.evals.run_evals --model claude-haiku-5-5 
 | `--model` | both | `claude-opus-5-5` |
 | `--effort` (`low` to `max`) | both | `high` |
 | `--cv`, `--spec` | agent | required |
+| `--record ROLE_ID` | agent: save the assessment to that Build 1 pipeline role, only if every hard check passes | off |
+| `--db` | agent, with `--record` | `PIPELINE_DB` or `data_private/pipeline.db` |
 | `--case` (file name pattern) | evals | all cases |
 | `--repeats` | evals | 1 |
 

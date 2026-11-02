@@ -8,10 +8,15 @@ cost and latency are recorded.
 Run from the agentic-pm-lab folder:
 
     uv run python -m build0_spec_qualifier.agent --cv data_public/demo_cv.md --spec data_public/demo_spec.md
+
+Add --record ROLE_ID to save the assessment to that role in the Build 1
+pipeline (only if every hard check passes; audited as actor "build0").
 """
 
 import argparse
 import json
+import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -129,13 +134,79 @@ def run_tools(cv: CVTools, content: list) -> list[dict]:
     return results
 
 
+# Recording a run in the Build 1 pipeline (--record). The pipeline's verdicts
+# come from Build 0's 0-100 score, in bands that match the tracker's own data.
+VERDICT_BANDS = ((80, "strong"), (65, "good"), (45, "stretch"), (0, "weak"))
+
+
+def to_pipeline_fit(assessment: FitAssessment, model: str, spec_name: str) -> dict:
+    """Map a FitAssessment onto the pipeline's fit format: met requirements become matches,
+    partial and missing ones become gaps, must-haves first."""
+    verdict = next(v for floor, v in VERDICT_BANDS if assessment.fit_score >= floor)
+    reqs = sorted(assessment.requirements, key=lambda r: r.importance != "must_have")
+    matches = [
+        {"title": r.requirement, "detail": r.reasoning + (f' Evidence: "{r.evidence[0].quote}"' if r.evidence else "")}
+        for r in reqs if r.verdict == "met"
+    ]
+    gaps = [
+        {"title": r.requirement, "detail": f"{r.verdict.capitalize()} ({r.importance.replace('_', '-')}). {r.reasoning}"}
+        for r in reqs if r.verdict != "met"
+    ]
+    return {
+        "verdict": verdict,
+        "score": assessment.fit_score,
+        "summary": f"{assessment.summary} Recommendation: {assessment.recommendation.replace('_', ' ')}.",
+        "matches": matches,
+        "gaps": gaps,
+        "source": f"Build 0 run ({model}) on {spec_name}, all hard checks passed",
+    }
+
+
+def check_role(role_id: str, db_path: Path) -> None:
+    """Fail before a paid run if the role can't be recorded against."""
+    from build1_mcp_server import store
+
+    if not db_path.exists():
+        raise AgentError(f"No pipeline database at {db_path}.")
+    with store.connect(db_path) as conn:
+        role = store.get_role(conn, role_id)
+    if role is None:
+        raise AgentError(f"No role with id {role_id!r} in {db_path}. Add it to the pipeline first.")
+    if role["archived_at"]:
+        raise AgentError(f"Role {role_id!r} is archived. Restore it first.")
+
+
+def record_result(result: AgentResult, role_id: str, db_path: Path, model: str, spec_name: str) -> dict:
+    """Save a run's assessment to the pipeline, audited as actor "build0". Refuses if any hard check failed."""
+    from build1_mcp_server import store
+
+    failed = [c.name for c in result.checks if not c.passed]
+    if failed:
+        raise AgentError(f"Not recorded: hard checks failed ({', '.join(failed)}).")
+    fit = to_pipeline_fit(result.assessment, model, spec_name)
+    with store.connect(db_path) as conn:
+        return store.record_fit_assessment(conn, role_id, **fit, actor="build0")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Assess how well a CV fits a job spec.")
     parser.add_argument("--cv", required=True, type=Path, help="CV as Markdown or plain text.")
     parser.add_argument("--spec", required=True, type=Path, help="Job spec as Markdown or plain text.")
     parser.add_argument("--model", default=MODEL)
     parser.add_argument("--effort", default=EFFORT, choices=["low", "medium", "high", "xhigh", "max"])
+    parser.add_argument("--record", metavar="ROLE_ID", help="Save the assessment to this pipeline role if all checks pass.")
+    parser.add_argument("--db", type=Path, help="Pipeline database for --record (default: PIPELINE_DB or data_private/pipeline.db).")
     args = parser.parse_args()
+
+    db_path = None
+    if args.record:
+        from build1_mcp_server import store
+
+        db_path = args.db or Path(os.environ.get("PIPELINE_DB", store.DEFAULT_DB))
+        try:
+            check_role(args.record, db_path)
+        except AgentError as exc:
+            sys.exit(str(exc))
 
     log = LLMLog(run_id=f"agent-{args.cv.stem}-{args.spec.stem}")
     result = run_agent(
@@ -150,6 +221,14 @@ def main() -> None:
     for check in result.checks:
         print(f"  {'PASS' if check.passed else 'FAIL'}  {check.name}  {check.detail}".rstrip())
     print(f"\n{result.turns} turns | {json.dumps(result.usage)}")
+
+    if args.record:
+        try:
+            role = record_result(result, args.record, db_path, args.model, args.spec.name)
+        except (AgentError, ValueError) as exc:
+            sys.exit(str(exc))
+        fit = role["fit_assessments"][0]
+        print(f"\nRecorded in {db_path}: {role['company']}, {fit['verdict']} {fit['score']} ({fit['assessed']})")
 
 
 if __name__ == "__main__":

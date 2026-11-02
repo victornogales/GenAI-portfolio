@@ -11,7 +11,7 @@ Every write function takes an open connection and leaves committing to the
 caller, so a whole import or tool call succeeds or fails as one transaction.
 Each write that changes something adds its audit row in that same
 transaction, so a change and its audit row are saved together or not at all.
-`actor` says who made it: "mcp" (a server tool), "import" or "demo".
+`actor` says who made it: "mcp" (a server tool), "build0" (agent.py --record), "import" or "demo".
 Read functions return plain dicts and lists, ready to send back as JSON.
 Archived roles are left out of reads unless include_archived=True.
 """
