@@ -5,6 +5,7 @@ answer. For each case the agent runs, and its answer is compared with the
 expected one:
 
 - every expected requirement is found, with the right verdict and importance
+  (an answer key may accept more than one verdict, e.g. ["partial", "met"])
 - the recommendation is one of the accepted ones
 - the fit score is inside the accepted range
 - every hard check in checks.py passes
@@ -45,14 +46,15 @@ MATCH_THRESHOLD = 0.6
 class RequirementResult:
     expected: str
     matched_to: str | None
-    expected_verdict: str
+    expected_verdict: str | list[str]
     actual_verdict: str | None
     expected_importance: str
     actual_importance: str | None
 
     @property
     def verdict_ok(self) -> bool:
-        return self.actual_verdict == self.expected_verdict
+        expected = self.expected_verdict
+        return self.actual_verdict in (expected if isinstance(expected, list) else [expected])
 
     @property
     def importance_ok(self) -> bool:
@@ -199,7 +201,7 @@ def write_report(results: list[CaseResult], model: str, effort: str, started: da
             if q.matched_to is None:
                 lines.append(f"- Not assessed: {q.expected!r}")
             elif not q.verdict_ok:
-                lines.append(f"- {q.expected!r}: expected **{q.expected_verdict}**, got **{q.actual_verdict}**")
+                lines.append(f"- {q.expected!r}: expected **{' or '.join(q.expected_verdict) if isinstance(q.expected_verdict, list) else q.expected_verdict}**, got **{q.actual_verdict}**")
             elif not q.importance_ok:
                 lines.append(f"- {q.expected!r}: expected {q.expected_importance}, got {q.actual_importance}")
         for extra in r.extra_requirements:

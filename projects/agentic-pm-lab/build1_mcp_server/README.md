@@ -45,6 +45,8 @@ Every change is audited. Each write in `store.py` adds a row to the `audit` tabl
 | `search_roles` | Find roles by company, title or keyword | `query` | 0 |
 | `pipeline_summary` | Counts by stage, plus roles with no activity for N days | `stale_days?` (default 14) | 0 |
 | `recent_changes` | The audit log: recent changes, newest first | `limit?` (default 20), `role_id?` | 0 |
+| `search_cv` | Find CV lines containing every word of a query | `query` | 0 |
+| `verify_quote` | Check a quote appears word for word in the CV | `quote` | 0 |
 | `add_role` | Add a new role to the pipeline | `company`, `title`, `stage?` (default `saved`), `track?`, `channel?`, `job_url?`, `spec_url?`, `next_action?` | 1 |
 | `update_stage` | Move a role to a new stage, recording the change in its history | `role_id`, `stage` (enum), `note?` | 1 |
 | `add_note` | Add a dated note to a role | `role_id`, `text` | 1 |
@@ -62,6 +64,7 @@ Every change is audited. Each write in `store.py` adds a row to the `audit` tabl
 | `pipeline://summary` | The pipeline at a glance: counts by stage, stale roles, upcoming next actions |
 | `pipeline://roles/{role_id}` | One role's full record |
 | `pipeline://audit` | The 50 most recent changes: when, who, what and to which role |
+| `cv://master` | The CV as Markdown, without its Right to Work section |
 
 ### Prompts
 
@@ -98,8 +101,44 @@ The server has every tool, resource and prompt in the tables below. Resources an
 
 ## Install in Claude Desktop
 
-_TODO_
+1. Install [uv](https://docs.astral.sh/uv/) and clone this repo.
+2. In Claude Desktop, open **Settings → Developer → Edit Config**. This opens `claude_desktop_config.json`.
+3. Add the server under `mcpServers`, with the full path to your `agentic-pm-lab` folder:
+
+```json
+{
+  "mcpServers": {
+    "job-pipeline": {
+      "command": "uv",
+      "args": ["--directory", "C:\\path\\to\\agentic-pm-lab", "run", "python", "-m", "build1_mcp_server.server"],
+      "env": {
+        "PIPELINE_DB": "data_public/pipeline_demo.db",
+        "CV_PATH": "data_public/demo_cv.md"
+      }
+    }
+  }
+}
+```
+
+4. Restart Claude Desktop. The server's tools appear under the tools icon, its resources under **+ → Add from job-pipeline**, and its prompts in the same menu.
+
+The `env` above uses the demo data. Point `PIPELINE_DB` and `CV_PATH` at your own files to use your real pipeline and CV; relative paths are resolved from the `agentic-pm-lab` folder. If Claude Desktop can't find `uv`, use its full path as `command` (on Windows, usually `C:\Users\<you>\.local\bin\uv.exe`).
 
 ## Install in Claude Code
 
-_TODO_
+From any folder, with the full path to `agentic-pm-lab`:
+
+```
+claude mcp add job-pipeline --scope user -e PIPELINE_DB=data_public/pipeline_demo.db -e CV_PATH=data_public/demo_cv.md -- uv --directory C:\path\to\agentic-pm-lab run python -m build1_mcp_server.server
+```
+
+`--scope user` makes it available in every project; leave it out to add it to the current project only. Check it with `claude mcp list`, or `/mcp` inside a session.
+
+## Configuration
+
+| Variable | What it points at | Default |
+|---|---|---|
+| `PIPELINE_DB` | The SQLite pipeline | `data_private/pipeline.db` |
+| `CV_PATH` | A Markdown CV for `search_cv`, `verify_quote` and `cv://master` | `data_private/vnogales-cv-master.md` |
+
+A `## Right to Work` section in the CV is never shown by the server: it is for fit assessments only.

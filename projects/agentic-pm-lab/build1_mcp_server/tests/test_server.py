@@ -46,7 +46,7 @@ def call(db_path, *calls):
 def test_tools_carry_their_risk_tier(db):
     tools, _ = call(db)
     by_name = {t.name: t.annotations for t in tools}
-    reads = {"get_role", "list_roles", "pipeline_summary", "search_roles", "recent_changes"}
+    reads = {"get_role", "list_roles", "pipeline_summary", "search_roles", "recent_changes", "search_cv", "verify_quote"}
     writes = {"add_role", "update_stage", "add_note", "set_next_action", "restore_role", "record_fit_assessment"}
     assert set(by_name) == reads | writes | {"archive_role"}
     assert all(by_name[n].read_only_hint for n in reads)
@@ -152,7 +152,7 @@ def test_resources(db):
         return listed, templates, summary, role
 
     listed, templates, summary, role = with_session(db, check)
-    assert sorted(listed) == ["pipeline://audit", "pipeline://summary"]
+    assert sorted(listed) == ["cv://master", "pipeline://audit", "pipeline://summary"]
     assert templates == ["pipeline://roles/{role_id}"]
     assert summary["by_stage"] == {"talking": 1}
     assert role["company"] == "Acme"

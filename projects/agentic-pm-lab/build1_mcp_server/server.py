@@ -16,6 +16,7 @@ Run from the agentic-pm-lab folder:
 
 import json
 import os
+import re
 import sys
 from contextlib import contextmanager
 from pathlib import Path
@@ -31,9 +32,16 @@ from pydantic import BaseModel, Field
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from build0_spec_qualifier.tools import CVTools  # noqa: E402
+from build0_spec_qualifier.tools import ToolError as CVToolError  # noqa: E402
 from build1_mcp_server import store  # noqa: E402
 
 DB_PATH = Path(os.environ.get("PIPELINE_DB", store.DEFAULT_DB))
+CV_PATH = Path(os.environ.get("CV_PATH", store.PROJECT_DIR / "data_private" / "vnogales-cv-master.md"))
+
+# The assessment CV has a "Right to Work" section for fit assessments only. It is
+# kept out of everything this server shows, so it can't find its way into drafts.
+_PRIVATE_SECTION = re.compile(r"^## Right to Work\s*$.*?(?=^## |\Z)", re.MULTILINE | re.DOTALL)
 
 Stage = Literal["saved", "applied", "talking", "interviewing", "offer", "closed"]
 Track = Literal["ai", "integrations", "general", "solutions"]
@@ -249,7 +257,53 @@ def recent_changes(
         return store.audit_log(conn, limit=limit, role_id=role_id)
 
 
+def _cv_text(error: Callable[[str], Exception] = ToolError) -> str:
+    """The CV as Markdown, without the Right to Work section."""
+    if not CV_PATH.exists():
+        raise error(f"No CV at {CV_PATH}. Set CV_PATH to a Markdown CV.")
+    return _PRIVATE_SECTION.sub("", CV_PATH.read_text(encoding="utf-8")).rstrip() + "\n"
+
+
+def _cv_tool(name: str, tool_input: dict) -> str:
+    try:
+        return CVTools(_cv_text()).run(name, tool_input)
+    except CVToolError as exc:
+        raise ToolError(str(exc)) from exc
+
+
+@mcp.tool(annotations=READ_ONLY)
+def search_cv(
+    query: Annotated[str, Field(min_length=1, description="Words to find, e.g. 'OAuth' or 'pricing packaging'.")],
+) -> str:
+    """Find lines in Victor's CV that contain every word of the query (case-insensitive, matching from the
+    start of words), with line numbers and the section each is in. Use it to check evidence before
+    claiming he has some experience, e.g. while assessing fit or preparing for an interview. No result
+    means those words aren't there, not that the experience is missing: try synonyms."""
+    return _cv_tool("search_cv", {"query": query})
+
+
+@mcp.tool(annotations=READ_ONLY)
+def verify_quote(
+    quote: Annotated[str, Field(min_length=1, description="The exact text you intend to quote from the CV.")],
+) -> str:
+    """Check that a quote appears word for word in Victor's CV (whitespace differences ignored). Use it on
+    every quote before citing it as evidence, e.g. in record_fit_assessment. If it isn't found, the result
+    shows the closest CV line so you can quote that instead."""
+    return _cv_tool("verify_quote", {"quote": quote})
+
+
 # Resources: read-only context a client can attach to a conversation.
+
+
+@mcp.resource(
+    "cv://master",
+    name="cv_master",
+    title="Master CV",
+    description="Victor's master CV as Markdown: every role, bullet and skill, for evidence.",
+    mime_type="text/markdown",
+)
+def cv_resource() -> str:
+    return _cv_text(ResourceError)
 
 
 @mcp.resource(
