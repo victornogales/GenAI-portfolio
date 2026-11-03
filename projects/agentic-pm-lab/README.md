@@ -57,7 +57,7 @@ Design choices worth knowing:
 
 ### Evals
 
-Each golden case pairs a CV and a job spec with a hand-checked answer key. The runner runs the agent several times per case and a run passes only if every verdict and importance matches, the recommendation is an accepted one, the score is in range and every hard check passes.
+Each golden case pairs a CV and a job spec with a hand-checked answer key. The runner runs the agent several times per case. A wrong verdict is either one step off (met vs partial, partial vs missing: a judgement call at the boundary) or a confident error (met vs missing). A run passes with no confident errors, an accepted recommendation, every hard check passing and at least 80% of verdicts exactly right; an answer key may accept two verdicts for a genuinely borderline requirement.
 
 | Report | Model | Result | What changed |
 |---|---|---|---|

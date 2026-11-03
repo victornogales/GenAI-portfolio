@@ -36,29 +36,58 @@ def case(tmp_path, monkeypatch):
     return path, answers
 
 
-def with_python_verdict(verdict):
+YEARS_ROW = 0  # "5+ years of product management": met in the key
+LLM_ROW = 2  # "Shipping LLM features": partial in the key
+
+
+def answer_with(**verdicts):
+    """The reference answer with some rows' verdicts changed, keeping evidence consistent with the checks."""
     answer = copy.deepcopy(REF)
-    row = answer["requirements"][PYTHON_ROW]
-    row["verdict"] = verdict
-    row["evidence"] = [] if verdict == "missing" else row["evidence"]
+    for row, verdict in verdicts.items():
+        r = answer["requirements"][int(row.removeprefix("row"))]
+        r["verdict"] = verdict
+        if verdict == "missing":
+            r["evidence"] = []
+        elif not r["evidence"]:
+            r["evidence"] = copy.deepcopy(REF["requirements"][YEARS_ROW]["evidence"])
     return answer
 
 
 def test_either_listed_verdict_passes(case):
     path, answers = case
-    answers += [with_python_verdict("partial"), with_python_verdict("met")]
+    answers += [answer_with(**{f"row{PYTHON_ROW}": "partial"}), answer_with(**{f"row{PYTHON_ROW}": "met"})]
     results = [ev.run_case(path, i, "t", "m", "high") for i in (1, 2)]
-    assert [r.passed for r in results] == [True, True]
+    assert [(r.passed, r.agreement) for r in results] == [(True, 1.0), (True, 1.0)]
 
 
-def test_a_verdict_outside_the_list_fails_and_the_report_names_both(case):
+def test_one_boundary_call_passes_but_is_reported(case):
     path, answers = case
-    answers.append(with_python_verdict("missing"))
+    answers.append(answer_with(**{f"row{PYTHON_ROW}": "missing"}))
     result = ev.run_case(path, 1, "t", "m", "high")
-    assert not result.passed and result.verdicts_correct == len(result.requirements) - 1
+    assert result.passed and (result.one_step, result.confident_errors) == (1, 0)
+    assert result.agreement == (len(result.requirements) - 1) / len(result.requirements)
     report = ev.write_report([result], "m", "high", datetime(2026, 11, 3, 10, 0), private=True)
     assert report.name.startswith("private_")
-    assert "expected **partial or met**, got **missing**" in report.read_text(encoding="utf-8")
+    text = report.read_text(encoding="utf-8")
+    assert "expected **partial or met**, got **missing** (one step)" in text
+    assert "**Confident errors (met vs missing):** 0" in text
+
+
+def test_a_confident_error_fails_the_run(case):
+    path, answers = case
+    answers.append(answer_with(**{f"row{YEARS_ROW}": "missing"}))
+    result = ev.run_case(path, 1, "t", "m", "high")
+    assert not result.passed and result.confident_errors == 1
+    report = ev.write_report([result], "m", "high", datetime(2026, 11, 3, 10, 0), private=True)
+    assert "got **missing** (confident error)" in report.read_text(encoding="utf-8")
+
+
+def test_too_many_boundary_calls_fail_the_run(case):
+    path, answers = case
+    answers.append(answer_with(**{f"row{PYTHON_ROW}": "missing", f"row{LLM_ROW}": "met"}))
+    result = ev.run_case(path, 1, "t", "m", "high")
+    assert (result.one_step, result.confident_errors) == (2, 0)
+    assert result.agreement < ev.PASS_AGREEMENT and not result.passed
 
 
 def test_single_verdict_keys_still_work():
