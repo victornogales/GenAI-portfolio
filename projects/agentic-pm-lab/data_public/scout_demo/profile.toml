@@ -1,0 +1,17 @@
+# Demo profile, matching the synthetic demo CV (data_public/demo_cv.md).
+
+[titles]
+include = ["product manager", "product lead", "head of product", "senior pm", "group pm"]
+exclude = ["intern", "internship", "graduate", "junior", "associate product", "product marketing", "product designer"]
+
+[locations]
+include = ["london", "united kingdom", "uk", "europe"]
+exclude = ["remote - us", "remote (us)", "us remote"]
+
+[triage]
+min_score = 50
+profile = """
+London-based senior product manager with eight years in B2B SaaS analytics: self-serve analytics platforms,
+onboarding and activation, SQL, experiments, an AI assistant pilot. Targets senior PM roles in data, analytics
+and AI products. Not a fit: junior, design, marketing or sales roles.
+"""

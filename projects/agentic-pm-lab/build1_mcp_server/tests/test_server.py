@@ -168,7 +168,7 @@ def test_prompts_include_current_pipeline_data(db):
         return prompts, weekly, prep
 
     prompts, weekly, prep = with_session(db, check)
-    assert prompts == {"weekly_review": [], "prepare_interview": ["role_id"]}
+    assert prompts == {"weekly_review": [], "prepare_interview": ["role_id"], "new_leads": ["days"]}
     assert "Platform PM" in weekly and "top three priorities" in weekly
     assert "Prep for call." in prep and "hardest questions" in prep
 

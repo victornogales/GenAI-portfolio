@@ -6,12 +6,14 @@ Tables:
     notes             dated free-text notes per role
     fit_assessments   fit assessments per role, newest by assessed date
     audit             one row per change: when, who (actor), what and to which role
+    scout_postings    every job posting the job scout has seen, and how far it got
 
 Every write function takes an open connection and leaves committing to the
 caller, so a whole import or tool call succeeds or fails as one transaction.
 Each write that changes something adds its audit row in that same
 transaction, so a change and its audit row are saved together or not at all.
-`actor` says who made it: "mcp" (a server tool), "build0" (agent.py --record), "import" or "demo".
+`actor` says who made it: "mcp" (a server tool), "build0" (agent.py --record), "scout" (the job scout),
+"import" or "demo".
 Read functions return plain dicts and lists, ready to send back as JSON.
 Archived roles are left out of reads unless include_archived=True.
 """
@@ -91,6 +93,20 @@ CREATE TABLE IF NOT EXISTS audit (
     action   TEXT NOT NULL,
     role_id  TEXT,
     details  TEXT NOT NULL DEFAULT '{{}}'
+);
+
+CREATE TABLE IF NOT EXISTS scout_postings (
+    key         TEXT PRIMARY KEY,
+    company     TEXT NOT NULL,
+    title       TEXT NOT NULL,
+    url         TEXT NOT NULL,
+    first_seen  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL,
+    stage       TEXT NOT NULL,
+    decision    TEXT,
+    reason      TEXT,
+    score       INTEGER,
+    role_id     TEXT REFERENCES roles(id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_roles_stage ON roles(stage);
@@ -403,6 +419,65 @@ def _required(value: str | None, name: str) -> str:
 
 def _optional(value: str | None) -> str | None:
     return (value or "").strip() or None
+
+
+# The job scout's bookkeeping. A posting is judged once: later runs skip it,
+# except one still "shortlisted" (an earlier run hit its assessment cap).
+
+SCOUT_RETRY_STAGES = ("shortlisted",)
+
+
+def seen_posting_keys(conn: sqlite3.Connection) -> set[str]:
+    """Keys of postings the scout has already dealt with."""
+    placeholders = ", ".join("?" * len(SCOUT_RETRY_STAGES))
+    rows = conn.execute(f"SELECT key FROM scout_postings WHERE stage NOT IN ({placeholders})", SCOUT_RETRY_STAGES)
+    return {r["key"] for r in rows}
+
+
+def record_posting(
+    conn: sqlite3.Connection,
+    key: str,
+    company: str,
+    title: str,
+    url: str,
+    stage: str,
+    decision: str | None = None,
+    reason: str | None = None,
+    score: int | None = None,
+    role_id: str | None = None,
+) -> None:
+    """Insert or update the scout's record of one posting. Bookkeeping only: one audit row per scout run
+    covers these (record_scout_run), and any role the scout adds is audited on its own."""
+    stamp = now()
+    conn.execute(
+        """INSERT INTO scout_postings (key, company, title, url, first_seen, updated_at, stage, decision, reason, score, role_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(key) DO UPDATE SET updated_at = excluded.updated_at, stage = excluded.stage,
+               decision = excluded.decision, reason = excluded.reason, score = excluded.score,
+               role_id = COALESCE(excluded.role_id, scout_postings.role_id)""",
+        (key, company, title, url, stamp, stamp, stage, decision, reason, score, role_id),
+    )
+
+
+def record_scout_run(conn: sqlite3.Connection, summary: dict, actor: str = "scout") -> None:
+    """One audit row per scout run, with its counts."""
+    _audit(conn, actor, "scout_run", None, summary)
+
+
+def find_role_by_job_url(conn: sqlite3.Connection, url: str) -> str | None:
+    """The id of a role already pointing at this job post, archived or not."""
+    row = conn.execute("SELECT id FROM roles WHERE job_url = ?", (url,)).fetchone()
+    return row["id"] if row else None
+
+
+def roles_added_by(conn: sqlite3.Connection, actor: str, since: str) -> list[dict]:
+    """Roles a given actor added on or after `since` (YYYY-MM-DD), newest first, as full records."""
+    rows = conn.execute(
+        "SELECT DISTINCT role_id FROM audit WHERE actor = ? AND action = 'add_role' AND substr(at, 1, 10) >= ? "
+        "ORDER BY id DESC",
+        (actor, since),
+    )
+    return [role for r in rows if (role := get_role(conn, r["role_id"])) is not None]
 
 
 def _audit(conn, actor: str, action: str, role_id: str | None, details: dict) -> None:

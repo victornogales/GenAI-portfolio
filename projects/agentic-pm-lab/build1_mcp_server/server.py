@@ -18,6 +18,7 @@ import json
 import os
 import re
 import sys
+from datetime import date, timedelta
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Annotated, Callable, Literal
@@ -405,6 +406,40 @@ Prepare me with:
 
 Use only what's in the record and say clearly when you're inferring. If there's no fit assessment, \
 say so and base points 3 and 4 on the job title and notes instead."""
+
+
+@mcp.prompt(
+    name="new_leads",
+    title="Review new leads from the job scout",
+    description="The roles the job scout added recently, with their fit, to keep or archive.",
+)
+def new_leads(
+    days: Annotated[str, Field(description="How many days back to look, e.g. '7'.")] = "7",
+) -> str:
+    try:
+        since = (date.today() - timedelta(days=max(1, int(days)))).isoformat()
+    except ValueError:
+        raise _prompt_error(f"days must be a whole number, not {days!r}.") from None
+    with _db(_prompt_error) as conn:
+        leads = store.roles_added_by(conn, "scout", since)
+    if not leads:
+        return f"The job scout hasn't added any roles since {since}. Say so in one line."
+    brief = [
+        {k: r[k] for k in ("id", "company", "title", "stage", "job_url", "archived_at")}
+        | {"fit": r["fit_assessments"][0] if r["fit_assessments"] else None, "notes": [n["text"] for n in r["notes"]]}
+        for r in leads
+    ]
+    return f"""The job scout found these roles for me since {since}. Each was triaged and then assessed against my CV.
+
+<leads>
+{json.dumps(brief, indent=2, ensure_ascii=False)}
+</leads>
+
+For each lead, best fit first, give me: company and title (with the job link), the verdict and score, the two \
+strongest matches and the most serious gap, and your call: keep and apply, keep and research, or archive.
+
+Don't change anything yet. End by asking which to keep and which to archive; then use update_stage, \
+set_next_action or archive_role for the ones I choose."""
 
 
 if __name__ == "__main__":

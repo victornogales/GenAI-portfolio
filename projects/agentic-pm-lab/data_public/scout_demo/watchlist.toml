@@ -1,0 +1,20 @@
+# Demo watchlist: public job boards of a few companies, to try the scout with the demo CV.
+# Finding a company's board: open one of its job posts. The slug is in the link:
+#   job-boards.greenhouse.io/<slug>/jobs/...   ->  ats = "greenhouse"
+#   jobs.lever.co/<slug>/...                    ->  ats = "lever"
+#   jobs.ashbyhq.com/<slug>/...                 ->  ats = "ashby"
+
+[[companies]]
+name = "Telnyx"
+ats = "greenhouse"
+slug = "telnyx54"
+
+[[companies]]
+name = "Attio"
+ats = "ashby"
+slug = "attio"
+
+[[companies]]
+name = "Spotify"
+ats = "lever"
+slug = "spotify"
